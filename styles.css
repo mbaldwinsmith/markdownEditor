@@ -1,0 +1,339 @@
+:root {
+  color-scheme: light dark;
+  --bg: #0f172a;
+  --surface: rgba(15, 23, 42, 0.75);
+  --text: #e2e8f0;
+  --accent: #38bdf8;
+  --accent-dark: #0ea5e9;
+  --border: rgba(148, 163, 184, 0.4);
+  --shadow: rgba(15, 23, 42, 0.4);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: linear-gradient(160deg, #0f172a, #1e293b);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(12px);
+  background: rgba(15, 23, 42, 0.85);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 4px 12px var(--shadow);
+}
+
+header .inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+h1 {
+  font-size: 1.1rem;
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.toolbar {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.toolbar button, .toolbar .secondary-button {
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid transparent;
+  color: var(--text);
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.toolbar button:hover,
+.toolbar .secondary-button:hover {
+  background: rgba(148, 163, 184, 0.2);
+  border-color: rgba(148, 163, 184, 0.3);
+  transform: translateY(-1px);
+}
+
+.toolbar button:active,
+.toolbar .secondary-button:active {
+  transform: translateY(0);
+}
+
+.toolbar button.primary {
+  background: var(--accent);
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.toolbar button.primary:hover {
+  background: var(--accent-dark);
+}
+
+main {
+  flex: 1;
+  width: 100%;
+}
+
+.editor-container {
+  max-width: 1200px;
+  margin: 1.5rem auto;
+  padding: 0 1.5rem 3rem;
+}
+
+.editor-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+textarea#markdown-input {
+  width: 100%;
+  min-height: 60vh;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  font-family: 'Fira Code', 'Source Code Pro', monospace;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  resize: vertical;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.45);
+}
+
+textarea#markdown-input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.preview {
+  padding: 1.5rem;
+  border-radius: 1rem;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.45);
+  overflow: auto;
+}
+
+.preview h1 {
+  font-size: 2rem;
+}
+
+.preview h2 {
+  font-size: 1.7rem;
+}
+
+.preview h3 {
+  font-size: 1.4rem;
+}
+
+.preview table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+}
+
+.preview table th,
+.preview table td {
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  padding: 0.5rem;
+}
+
+.preview pre,
+.preview code {
+  font-family: 'Fira Code', 'Source Code Pro', monospace;
+  background: rgba(15, 23, 42, 0.75);
+  padding: 0.2rem 0.35rem;
+  border-radius: 0.35rem;
+}
+
+.preview pre {
+  padding: 0.75rem 1rem;
+  overflow: auto;
+}
+
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  color: rgba(226, 232, 240, 0.7);
+}
+
+.status-bar span {
+  margin-right: 1rem;
+}
+
+.file-indicator {
+  font-weight: 600;
+}
+
+#status-message {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: rgba(226, 232, 240, 0.75);
+  min-height: 1.2rem;
+}
+
+#status-message.status-success {
+  color: #86efac;
+}
+
+#drive-dialog {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.75);
+  display: none;
+  place-items: center;
+  padding: 1.5rem;
+  z-index: 100;
+}
+
+#drive-dialog.active {
+  display: grid;
+}
+
+#drive-dialog .dialog-content {
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  width: min(500px, 100%);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.7);
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.dialog-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.dialog-body label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.dialog-body input {
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.65);
+  color: var(--text);
+}
+
+.dialog-body input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.dialog-footer button {
+  padding: 0.45rem 0.8rem;
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.dialog-footer button.primary {
+  background: var(--accent);
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.drive-files {
+  max-height: 200px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: rgba(15, 23, 42, 0.65);
+}
+
+.drive-files table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.drive-files th,
+.drive-files td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  text-align: left;
+}
+
+.drive-files tr:hover {
+  background: rgba(56, 189, 248, 0.15);
+  cursor: pointer;
+}
+
+.alert {
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  background: rgba(248, 113, 113, 0.18);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  color: #fecaca;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+  header .inner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  h1 {
+    text-align: center;
+  }
+
+  .toolbar {
+    justify-content: center;
+  }
+
+  .status-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
