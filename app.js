@@ -754,36 +754,33 @@ async function initializeGapiClient() {
   if (gapiInitPromise) {
     return gapiInitPromise;
   }
-
-async function waitForGapi() {
-  try {
-    gapiInitPromise = gapi.client
-      .init({
-        discoveryDocs
-      })
-      .then(() => {
-        if (googleDriveConfig.apiKey) {
-          gapi.client.setApiKey(googleDriveConfig.apiKey);
-        }
-      })
-      .catch((error) => {
-        gapiInitPromise = null;
-        throw error;
-      });
-    await gapiInitPromise;
-  } catch (error) {
-    gapiInitPromise = null;
-    throw error;
+  if (typeof gapi === 'undefined' || !gapi?.client) {
+    throw new Error('Google API client library failed to load.');
   }
+  gapiInitPromise = gapi.client
+    .init({
+      discoveryDocs
+    })
+    .then(() => {
+      if (googleDriveConfig.apiKey) {
+        gapi.client.setApiKey(googleDriveConfig.apiKey);
+      }
+    })
+    .catch((error) => {
+      gapiInitPromise = null;
+      throw error;
+    });
+  await gapiInitPromise;
+  return gapiInitPromise;
 }
 
 async function waitForGapi() {
-  if (gapiReady && window.gapi) {
+  if (gapiReady && window.gapi?.client) {
     return;
   }
   await new Promise((resolve) => {
     const check = () => {
-      if (gapiReady && window.gapi) {
+      if (gapiReady && window.gapi?.client) {
         resolve();
       } else {
         window.setTimeout(check, 100);
