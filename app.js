@@ -276,6 +276,56 @@ function resolveOffset(offset) {
   return { node: editor, offset: editor.childNodes.length };
 }
 
+function findFirstTextNode(node) {
+  if (!node) {
+    return null;
+  }
+
+  if (node.nodeType === Node.TEXT_NODE) {
+    return node;
+  }
+
+  const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, null);
+  return walker.nextNode();
+}
+
+function findNextTextNode(node) {
+  let current = node;
+  while (current) {
+    let sibling = current.nextSibling;
+    while (sibling) {
+      const textNode = findFirstTextNode(sibling);
+      if (textNode) {
+        return textNode;
+      }
+      sibling = sibling.nextSibling;
+    }
+    current = current.parentNode;
+  }
+  return null;
+}
+
+function normalizeCaretPosition(position) {
+  const { node, offset } = position;
+  if (!node || node.nodeType !== Node.TEXT_NODE) {
+    return position;
+  }
+
+  const text = node.textContent || '';
+  if (text !== '\n' || offset < text.length) {
+    return position;
+  }
+
+  const nextTextNode = findNextTextNode(node);
+  if (!nextTextNode) {
+    return position;
+  }
+
+  const nextText = nextTextNode.textContent || '';
+  const nextOffset = nextText === '\u200B' ? nextText.length : 0;
+  return { node: nextTextNode, offset: nextOffset };
+}
+
 function setSelectionRange(start, end) {
   const editor = editorElements.editor;
   if (!editor) {
@@ -292,8 +342,8 @@ function setSelectionRange(start, end) {
   }
 
   const range = document.createRange();
-  const startPosition = resolveOffset(clampedStart);
-  const endPosition = resolveOffset(clampedEnd);
+  const startPosition = normalizeCaretPosition(resolveOffset(clampedStart));
+  const endPosition = normalizeCaretPosition(resolveOffset(clampedEnd));
 
   try {
     if (startPosition.node) {
