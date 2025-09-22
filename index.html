@@ -17,7 +17,9 @@
         <nav class="toolbar" aria-label="Markdown formatting">
           <button type="button" data-action="bold" aria-label="Bold">B</button>
           <button type="button" data-action="italic" aria-label="Italic"><em>I</em></button>
-          <button type="button" data-action="heading" aria-label="Heading">H</button>
+          <button type="button" data-action="heading-1" aria-label="Heading level 1">H1</button>
+          <button type="button" data-action="heading-2" aria-label="Heading level 2">H2</button>
+          <button type="button" data-action="heading-3" aria-label="Heading level 3">H3</button>
           <button type="button" data-action="link" aria-label="Insert link">Link</button>
           <button type="button" data-action="image" aria-label="Insert image">Image</button>
           <button type="button" data-action="ordered-list" aria-label="Ordered list">1.</button>
@@ -37,11 +39,8 @@
     </header>
     <main>
       <div class="editor-container">
-        <div class="editor-panels">
-          <section>
-            <textarea id="markdown-input" aria-label="Markdown input" spellcheck="true"></textarea>
-          </section>
-          <section class="preview" id="preview" aria-label="Preview" aria-live="polite"></section>
+        <div class="editor-wrapper">
+          <textarea id="markdown-input" aria-label="Markdown input" spellcheck="true"></textarea>
         </div>
         <div class="status-bar">
           <div>
@@ -95,16 +94,6 @@
       </div>
     </div>
 
-    <script
-      src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"
-      integrity="sha384-dQUsVTNff7kwh28ykVfoCENKz7dxyzKDn5XxhxL7sRKqzZo4PMBVXgS5aXoaZySU"
-      crossorigin="anonymous"
-    ></script>
-    <script
-      src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"
-      integrity="sha384-4nz6Gfa1zu4MDXB0qx5kyRjO6jwxKF1u9IiMaivGi99ZTSdKCbFf8gLuwZQ+QpV5"
-      crossorigin="anonymous"
-    ></script>
     <script src="app.js" defer></script>
     <script async defer src="https://apis.google.com/js/api.js?onload=onGapiLoaded"></script>
   </body>

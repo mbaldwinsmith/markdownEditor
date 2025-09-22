@@ -2,7 +2,6 @@
 
 const editorElements = {
   textarea: document.getElementById('markdown-input'),
-  preview: document.getElementById('preview'),
   wordCount: document.getElementById('word-count'),
   charCount: document.getElementById('char-count'),
   fileIndicator: document.getElementById('current-file'),
@@ -39,11 +38,11 @@ const scopes = 'https://www.googleapis.com/auth/drive.readonly https://www.googl
 
 const defaultMarkdown = `# Welcome to the Markdown Editor PWA
 
-Start typing in the editor on the left to see the rendered Markdown preview on the right. Use the toolbar buttons to quickly insert Markdown formatting such as **bold**, *italic*, links, lists, tables, and more.
+Start typing in the editor to craft your Markdown documents. Use the toolbar buttons to quickly insert Markdown formatting such as **bold**, *italic*, links, lists, tables, and more.
 
 ## Features
 
-- Live preview rendered with [Marked](https://marked.js.org/)
+- Minimal editor focused on Markdown syntax
 - Word and character counts update automatically
 - Save your documents to Google Drive
 - Install the app to work offline as a Progressive Web App
@@ -52,38 +51,14 @@ Start typing in the editor on the left to see the rendered Markdown preview on t
 `;
 
 function init() {
-  if (typeof marked !== 'undefined') {
-    marked.setOptions({
-      breaks: true,
-      gfm: true,
-      headerIds: true
-    });
-  }
-
   const savedContent = localStorage.getItem('markdown-editor-content');
   editorElements.textarea.value = savedContent ?? defaultMarkdown;
-  renderPreview(editorElements.textarea.value);
   updateCounts(editorElements.textarea.value);
   loadStoredCredentials();
   restoreLastFile();
   updateDriveButtons(false);
   attachEventListeners();
   registerServiceWorker();
-}
-
-function renderPreview(markdownText) {
-  if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
-    editorElements.preview.textContent = markdownText;
-    return;
-  }
-
-  try {
-    const html = marked.parse(markdownText);
-    editorElements.preview.innerHTML = DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
-  } catch (error) {
-    editorElements.preview.textContent = markdownText;
-    console.error('Failed to render markdown', error);
-  }
 }
 
 function updateCounts(content) {
@@ -114,7 +89,6 @@ function updateFileIndicator() {
 function attachEventListeners() {
   editorElements.textarea.addEventListener('input', () => {
     const value = editorElements.textarea.value;
-    renderPreview(value);
     updateCounts(value);
     isDirty = true;
     localStorage.setItem('markdown-editor-content', value);
@@ -187,8 +161,14 @@ function applyMarkdown(action) {
     case 'italic':
       wrapSelection('*', '*', 'italic text');
       break;
-    case 'heading':
-      applyLinePrefix('## ');
+    case 'heading-1':
+      applyLinePrefix('# ', 'Heading 1');
+      break;
+    case 'heading-2':
+      applyLinePrefix('## ', 'Heading 2');
+      break;
+    case 'heading-3':
+      applyLinePrefix('### ', 'Heading 3');
       break;
     case 'link':
       insertLink();
@@ -235,7 +215,7 @@ function insertSnippet(snippet) {
   triggerEditorUpdate();
 }
 
-function applyLinePrefix(prefix) {
+function applyLinePrefix(prefix, placeholder = '') {
   const textarea = editorElements.textarea;
   const { selectionStart, selectionEnd, value } = textarea;
   const lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1;
@@ -248,12 +228,20 @@ function applyLinePrefix(prefix) {
   const updatedLines = lines.map((line) => {
     const trimmed = line.trim();
     if (!trimmed) {
-      return prefix;
+      return placeholder ? `${prefix}${placeholder}` : prefix;
     }
     if (line.startsWith(prefix)) {
+      const withoutPrefix = line.slice(prefix.length).trim();
+      if (!withoutPrefix && placeholder) {
+        return `${prefix}${placeholder}`;
+      }
       return line;
     }
-    return `${prefix}${line.replace(/^#{1,6}\s+/u, '')}`;
+    const cleaned = line.replace(/^#{1,6}\s+/u, '').trimStart();
+    if (!cleaned && placeholder) {
+      return `${prefix}${placeholder}`;
+    }
+    return `${prefix}${cleaned}`;
   });
   const updated = updatedLines.join('\n');
   textarea.setRangeText(updated, lineStart, lineEnd, 'end');
@@ -307,7 +295,6 @@ function insertImage() {
 
 function triggerEditorUpdate() {
   const value = editorElements.textarea.value;
-  renderPreview(value);
   updateCounts(value);
   isDirty = true;
   localStorage.setItem('markdown-editor-content', value);
@@ -513,7 +500,6 @@ async function loadDriveFile(fileId, name) {
     const response = await gapi.client.drive.files.get({ fileId, alt: 'media' });
     const content = response.body || response.result || '';
     editorElements.textarea.value = content;
-    renderPreview(content);
     updateCounts(content);
     currentFileId = fileId;
     currentFileName = name;
