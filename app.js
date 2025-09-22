@@ -53,7 +53,7 @@ Start typing in the editor to craft your Markdown documents. Use the toolbar but
 - Save your documents to Google Drive
 - Install the app to work offline as a Progressive Web App
 
-> Tip: Update the `google-oauth-client-id` meta tag in `index.html` with your OAuth client ID to enable Google Drive sync.
+> Tip: Update the \`google-oauth-client-id\` meta tag in `index.html` with your OAuth client ID to enable Google Drive sync.
 `;
 
 function init() {
