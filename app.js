@@ -37,10 +37,12 @@ let accessToken = null;
 const discoveryDocs = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
 const scopes = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
 
-const googleDriveConfig = Object.freeze({
-  clientId: document.querySelector('meta[name="google-oauth-client-id"]')?.content?.trim() ?? '',
-  apiKey: document.querySelector('meta[name="google-api-key"]')?.content?.trim() ?? ''
-});
+const driveConfigEndpoint = '/config/google-drive.json';
+
+let googleDriveConfig = {
+  clientId: '',
+  apiKey: ''
+};
 
 const defaultMarkdown = `# Welcome to the Markdown Editor PWA
 
@@ -53,10 +55,37 @@ Start typing in the editor to craft your Markdown documents. Use the toolbar but
 - Save your documents to Google Drive
 - Install the app to work offline as a Progressive Web App
 
-> Tip: Update the \`google-oauth-client-id\` meta tag in \`index.html\` with your OAuth client ID to enable Google Drive sync.
+> Tip: Provide Google Drive credentials via your secure runtime configuration (or the \`google-oauth-client-id\` meta tag for local development) to enable Google Drive sync.
 `;
 
-function init() {
+async function loadGoogleDriveConfig() {
+  const metaClientId = document.querySelector('meta[name="google-oauth-client-id"]')?.content?.trim() ?? '';
+  try {
+    const response = await fetch(driveConfigEndpoint, { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error(`Unexpected status ${response.status}`);
+    }
+    const config = await response.json();
+    googleDriveConfig = {
+      clientId:
+        typeof config.clientId === 'string' && config.clientId.trim() ? config.clientId.trim() : metaClientId,
+      apiKey: typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+    };
+  } catch (error) {
+    console.warn('Falling back to client-side Google Drive configuration.', error);
+    googleDriveConfig = {
+      clientId: metaClientId,
+      apiKey: ''
+    };
+  }
+  updateDriveConfigMessage();
+  if (isDriveConfigured() && gisReady && window.google?.accounts?.oauth2) {
+    ensureTokenClient();
+  }
+  return googleDriveConfig;
+}
+
+async function init() {
   const savedContent = localStorage.getItem('markdown-editor-content');
   const initialContent = savedContent ?? defaultMarkdown;
   applyEditorUpdate(initialContent, initialContent.length, initialContent.length, {
@@ -66,9 +95,9 @@ function init() {
   });
   restoreLastFile();
   updateDriveButtons(false);
-  updateDriveConfigMessage();
+  await loadGoogleDriveConfig();
   if (!isDriveConfigured()) {
-    setStatus('Configure your Google OAuth client ID in index.html to enable Google Drive sync.', 'error');
+    setStatus('Provide Google Drive credentials via your runtime configuration to enable Google Drive sync.', 'error');
   }
   attachEventListeners();
   registerServiceWorker();
@@ -629,10 +658,10 @@ function updateDriveConfigMessage() {
   }
   if (isDriveConfigured()) {
     editorElements.driveConfigStatus.textContent =
-      'Your OAuth client ID is configured. Sign in to browse Google Drive files.';
+      'Google Drive credentials loaded. Sign in to browse your files.';
   } else {
     editorElements.driveConfigStatus.textContent =
-      'Set the google-oauth-client-id meta tag in index.html to your OAuth client ID to enable Drive sync.';
+      'Provide Google Drive credentials via your secure runtime configuration to enable Drive sync. For local development you may set the google-oauth-client-id meta tag.';
   }
 }
 
@@ -661,7 +690,7 @@ function updateDriveButtons(isSignedIn) {
   editorElements.driveSignInButton.hidden = isSignedIn;
   editorElements.driveSignOutButton.hidden = !isSignedIn;
   if (!isSignedIn && !isDriveConfigured()) {
-    editorElements.driveStatus.textContent = 'OAuth client ID not configured';
+    editorElements.driveStatus.textContent = 'Google Drive credentials not configured';
   } else {
     editorElements.driveStatus.textContent = isSignedIn ? 'Connected to Google Drive' : 'Not connected';
   }
@@ -731,7 +760,9 @@ async function requestAccessToken({ forcePrompt = false } = {}) {
 
 async function ensureDriveAccess({ promptUser = false, forcePrompt = false } = {}) {
   if (!isDriveConfigured()) {
-    throw new Error('Set the google-oauth-client-id meta tag in index.html before connecting to Google Drive.');
+    throw new Error(
+      'Provide Google Drive credentials via your secure runtime configuration before connecting to Google Drive.'
+    );
   }
   await initializeGapiClient();
   if (!forcePrompt && accessToken) {
@@ -983,4 +1014,7 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
-init();
+init().catch((error) => {
+  console.error('Failed to initialise the Markdown editor.', error);
+  setStatus('Failed to initialise Google Drive integration. Check console for details.', 'error');
+});
