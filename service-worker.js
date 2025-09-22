@@ -30,6 +30,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  const requestUrl = new URL(event.request.url);
+  if (requestUrl.protocol !== 'http:' && requestUrl.protocol !== 'https:') {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
@@ -37,6 +42,10 @@ self.addEventListener('fetch', (event) => {
       }
       return fetch(event.request)
         .then((response) => {
+          if (!response || response.status !== 200) {
+            return response;
+          }
+
           const responseClone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
           return response;
