@@ -190,7 +190,13 @@ function getPlainTextFromEditor() {
   if (!editor) {
     return '';
   }
-  return (editor.textContent || '').replace(/\u200B/gu, '');
+  const lineNodes = editor.querySelectorAll('.editor-line');
+  if (lineNodes.length === 0) {
+    return (editor.textContent || '').replace(/\u200B/gu, '');
+  }
+
+  const lines = Array.from(lineNodes, (line) => (line.textContent || '').replace(/\u200B/gu, ''));
+  return lines.join('\n');
 }
 
 function getSelectionOffsets() {
