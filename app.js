@@ -81,7 +81,7 @@ function ensureMarkdownExtension(name) {
   return /\.md$/iu.test(trimmed) ? trimmed : `${trimmed}.md`;
 }
 
-function init() {
+async function init() {
   const savedContent = localStorage.getItem('markdown-editor-content');
   const initialContent = savedContent ?? defaultMarkdown;
   applyEditorUpdate(initialContent, initialContent.length, initialContent.length, {
@@ -838,6 +838,45 @@ function showDriveError(error) {
 function clearDriveError() {
   editorElements.dialogAlert.hidden = true;
   editorElements.dialogAlert.textContent = '';
+}
+
+async function loadGoogleDriveConfig() {
+  let config = null;
+
+  try {
+    const response = await fetch(driveConfigEndpoint, { cache: 'no-store' });
+    if (response.ok) {
+      config = await response.json();
+    } else if (response.status !== 404) {
+      console.warn('Failed to load Google Drive configuration.', response.statusText);
+    }
+  } catch (error) {
+    console.warn('Unable to load Google Drive configuration:', error);
+  }
+
+  if (config) {
+    if (typeof config.clientId === 'string') {
+      googleDriveConfig.clientId = config.clientId.trim();
+    }
+    if (typeof config.apiKey === 'string') {
+      googleDriveConfig.apiKey = config.apiKey.trim();
+    }
+  }
+
+  if (!googleDriveConfig.clientId) {
+    const meta = document.querySelector('meta[name="google-oauth-client-id"]');
+    const metaContent = meta?.content?.trim();
+    if (metaContent) {
+      googleDriveConfig.clientId = metaContent;
+    }
+  }
+
+  updateDriveConfigMessage();
+  updateDriveButtons(Boolean(accessToken));
+
+  if (isDriveConfigured() && gisReady) {
+    ensureTokenClient();
+  }
 }
 
 function isDriveConfigured() {
