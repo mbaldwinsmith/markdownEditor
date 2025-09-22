@@ -59,7 +59,7 @@ let googleDriveConfig = {
   apiKey: ''
 };
 
-const defaultMarkdown = `# Welcome to the Markdown Editor PWA
+const defaultMarkdown = `# Welcome to Mark's Markdown Editor
 
 Start typing in the editor to craft your Markdown documents. Use the toolbar buttons to quickly insert Markdown formatting such as **bold**, *italic*, links, lists, tables, and more.
 
