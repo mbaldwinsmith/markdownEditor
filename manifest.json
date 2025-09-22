@@ -1,6 +1,6 @@
 {
-  "name": "Markdown PWA Editor",
-  "short_name": "MD Editor",
+  "name": "Mark's Markdown Editor",
+  "short_name": "Mark's Editor",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#1f2937",

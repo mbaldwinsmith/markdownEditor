@@ -1,4 +1,4 @@
-# Markdown Editor PWA
+# Mark's Markdown Editor
 
 A zero-build Progressive Web App Markdown editor designed to run directly from GitHub Pages. It offers streamlined editing, formatting shortcuts, offline support, and Google Drive integration for opening and saving `.md` files.
 
