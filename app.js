@@ -942,7 +942,19 @@ function restoreLastFile() {
 }
 
 window.onGapiLoaded = () => {
-  gapiReady = true;
+  if (typeof gapi === 'undefined' || !gapi?.load) {
+    console.error('Google API platform script loaded without gapi.load available.');
+    return;
+  }
+
+  gapi.load('client', {
+    callback: () => {
+      gapiReady = true;
+    },
+    onerror: () => {
+      console.error('Failed to load Google API client library modules.');
+    }
+  });
 };
 
 window.onGoogleAccountsLoaded = () => {
