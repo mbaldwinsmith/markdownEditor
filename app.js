@@ -15,6 +15,12 @@ const editorElements = {
   driveFilesWrapper: document.getElementById('drive-files'),
   driveFilesBody: document.getElementById('drive-files-body'),
   driveRefreshButton: document.getElementById('drive-refresh-files'),
+  driveDialogTitle: document.getElementById('drive-dialog-title'),
+  driveBreadcrumbs: document.getElementById('drive-breadcrumbs'),
+  driveFolderUpButton: document.getElementById('drive-folder-up'),
+  driveSaveControls: document.getElementById('drive-save-controls'),
+  driveFileNameInput: document.getElementById('drive-file-name'),
+  driveSaveConfirmButton: document.getElementById('drive-save-confirm'),
   driveOpenButton: document.getElementById('drive-open'),
   driveSaveButton: document.getElementById('drive-save'),
   driveSaveAsButton: document.getElementById('drive-save-as'),
@@ -33,6 +39,15 @@ let lastSelection = { start: 0, end: 0 };
 let tokenClient = null;
 let gisReady = false;
 let accessToken = null;
+
+const DRIVE_ROOT_ID = 'root';
+const DRIVE_ROOT_LABEL = 'My Drive';
+
+let driveDialogMode = 'open';
+let currentDriveFolderId = DRIVE_ROOT_ID;
+let driveFolderPath = [];
+let pendingSaveFileId = null;
+let pendingSaveFileName = '';
 
 const discoveryDocs = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
 const scopes = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
@@ -55,6 +70,14 @@ Start typing in the editor to craft your Markdown documents. Use the toolbar but
 
 > Tip: Update the \`google-oauth-client-id\` meta tag in \`index.html\` with your OAuth client ID to enable Google Drive sync.
 `;
+
+function ensureMarkdownExtension(name) {
+  const trimmed = (name || '').trim();
+  if (!trimmed) {
+    return 'Untitled.md';
+  }
+  return /\.md$/iu.test(trimmed) ? trimmed : `${trimmed}.md`;
+}
 
 function init() {
   const savedContent = localStorage.getItem('markdown-editor-content');
@@ -396,9 +419,14 @@ function attachEventListeners() {
     });
   }
 
+  if (editorElements.driveFolderUpButton) {
+    editorElements.driveFolderUpButton.addEventListener('click', () => {
+      navigateToParentFolder();
+    });
+  }
+
   editorElements.driveOpenButton.addEventListener('click', () => {
-    openDialog();
-    refreshDriveFileList();
+    openDialog('open');
   });
 
   editorElements.driveSaveButton.addEventListener('click', () => {
@@ -406,8 +434,32 @@ function attachEventListeners() {
   });
 
   editorElements.driveSaveAsButton.addEventListener('click', () => {
-    saveToDrive(true);
+    openDialog('save');
   });
+
+  if (editorElements.driveSaveConfirmButton) {
+    editorElements.driveSaveConfirmButton.addEventListener('click', () => {
+      handleDriveSaveConfirm();
+    });
+  }
+
+  if (editorElements.driveFileNameInput) {
+    editorElements.driveFileNameInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        handleDriveSaveConfirm();
+      }
+    });
+    editorElements.driveFileNameInput.addEventListener('input', () => {
+      if (!pendingSaveFileId) {
+        return;
+      }
+      const trimmed = editorElements.driveFileNameInput.value.trim();
+      if (trimmed !== pendingSaveFileName) {
+        clearDriveSelection();
+      }
+    });
+  }
 
   editorElements.driveSignInButton.addEventListener('click', () => {
     signInToGoogle();
@@ -574,18 +626,185 @@ function insertImage() {
   wrapSelection('![', `](${url})`, 'alt text');
 }
 
-function openDialog() {
+function openDialog(mode = 'open') {
+  driveDialogMode = mode;
   clearDriveError();
   updateDriveConfigMessage();
   editorElements.dialog.classList.add('active');
   editorElements.dialog.setAttribute('aria-hidden', 'false');
-  editorElements.driveFilesWrapper.hidden = true;
-  editorElements.driveRefreshButton?.focus();
+  if (editorElements.driveFilesWrapper) {
+    editorElements.driveFilesWrapper.hidden = true;
+  }
+  driveFolderPath = [{ id: DRIVE_ROOT_ID, name: DRIVE_ROOT_LABEL }];
+  currentDriveFolderId = DRIVE_ROOT_ID;
+  pendingSaveFileId = null;
+  pendingSaveFileName = '';
+  updateDriveDialogMode();
+  refreshDriveFileList({ folderId: currentDriveFolderId });
+  if (driveDialogMode === 'save') {
+    const defaultName = ensureMarkdownExtension(currentFileName || 'Untitled.md');
+    if (editorElements.driveFileNameInput) {
+      editorElements.driveFileNameInput.value = defaultName;
+      window.setTimeout(() => {
+        editorElements.driveFileNameInput?.focus();
+        editorElements.driveFileNameInput?.select();
+      }, 0);
+    }
+  } else {
+    window.setTimeout(() => {
+      editorElements.driveRefreshButton?.focus();
+    }, 0);
+  }
 }
 
 function closeDialog() {
   editorElements.dialog.classList.remove('active');
   editorElements.dialog.setAttribute('aria-hidden', 'true');
+  pendingSaveFileId = null;
+  pendingSaveFileName = '';
+}
+
+function updateDriveDialogMode() {
+  const isSaveMode = driveDialogMode === 'save';
+  if (editorElements.driveDialogTitle) {
+    editorElements.driveDialogTitle.textContent = isSaveMode
+      ? 'Save to Google Drive'
+      : 'Open from Google Drive';
+  }
+  if (editorElements.driveSaveControls) {
+    editorElements.driveSaveControls.hidden = !isSaveMode;
+  }
+  if (!isSaveMode && editorElements.driveFileNameInput) {
+    editorElements.driveFileNameInput.value = '';
+  }
+  updateDrivePathDisplay();
+  updateDriveFolderUpButton();
+}
+
+function updateDrivePathDisplay() {
+  if (!editorElements.driveBreadcrumbs) {
+    return;
+  }
+  if (!driveFolderPath.length) {
+    driveFolderPath = [{ id: DRIVE_ROOT_ID, name: DRIVE_ROOT_LABEL }];
+  }
+  editorElements.driveBreadcrumbs.innerHTML = '';
+  driveFolderPath.forEach((entry, index) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = entry.name || 'Untitled';
+    button.disabled = index === driveFolderPath.length - 1;
+    if (!button.disabled) {
+      button.addEventListener('click', () => {
+        driveFolderPath = driveFolderPath.slice(0, index + 1);
+        const target = driveFolderPath[driveFolderPath.length - 1];
+        currentDriveFolderId = target.id;
+        clearDriveSelection();
+        refreshDriveFileList({ folderId: target.id });
+      });
+    }
+    editorElements.driveBreadcrumbs.appendChild(button);
+    if (index < driveFolderPath.length - 1) {
+      const separator = document.createElement('span');
+      separator.classList.add('separator');
+      separator.textContent = '/';
+      editorElements.driveBreadcrumbs.appendChild(separator);
+    }
+  });
+  updateDriveFolderUpButton();
+}
+
+function updateDriveFolderUpButton() {
+  if (!editorElements.driveFolderUpButton) {
+    return;
+  }
+  editorElements.driveFolderUpButton.disabled = driveFolderPath.length <= 1;
+}
+
+function navigateToParentFolder() {
+  if (driveFolderPath.length <= 1) {
+    return;
+  }
+  driveFolderPath = driveFolderPath.slice(0, -1);
+  const parent = driveFolderPath[driveFolderPath.length - 1];
+  currentDriveFolderId = parent.id;
+  clearDriveSelection();
+  refreshDriveFileList({ folderId: parent.id });
+}
+
+function enterDriveFolder(folder) {
+  if (!folder?.id) {
+    return;
+  }
+  const name = folder.name || 'Untitled folder';
+  driveFolderPath = [...driveFolderPath, { id: folder.id, name }];
+  currentDriveFolderId = folder.id;
+  clearDriveSelection();
+  refreshDriveFileList({ folderId: folder.id });
+}
+
+function clearDriveSelection() {
+  pendingSaveFileId = null;
+  pendingSaveFileName = '';
+  if (!editorElements.driveFilesBody) {
+    return;
+  }
+  editorElements.driveFilesBody.querySelectorAll('.selected').forEach((row) => {
+    row.classList.remove('selected');
+  });
+}
+
+function selectDriveFileForSave(file, row) {
+  if (!file?.id) {
+    return;
+  }
+  clearDriveSelection();
+  pendingSaveFileId = file.id;
+  if (row) {
+    row.classList.add('selected');
+  }
+  if (editorElements.driveFileNameInput) {
+    editorElements.driveFileNameInput.value = ensureMarkdownExtension(file.name || 'Untitled.md');
+    pendingSaveFileName = editorElements.driveFileNameInput.value.trim();
+    editorElements.driveFileNameInput.focus();
+    editorElements.driveFileNameInput.select();
+  } else {
+    pendingSaveFileName = ensureMarkdownExtension(file.name || 'Untitled.md');
+  }
+}
+
+async function handleDriveSaveConfirm() {
+  if (driveDialogMode !== 'save') {
+    return;
+  }
+  clearDriveError();
+  const input = editorElements.driveFileNameInput?.value ?? '';
+  if (!input.trim()) {
+    showDriveError('Enter a file name to save.');
+    editorElements.driveFileNameInput?.focus();
+    return;
+  }
+  const fileName = ensureMarkdownExtension(input);
+  const options = {
+    folderId: currentDriveFolderId,
+    fileName
+  };
+  if (pendingSaveFileId) {
+    options.fileId = pendingSaveFileId;
+  } else {
+    options.forceNew = true;
+  }
+  const confirmButton = editorElements.driveSaveConfirmButton;
+  if (confirmButton) {
+    confirmButton.disabled = true;
+  }
+  const success = await saveToDrive(options);
+  if (confirmButton) {
+    confirmButton.disabled = false;
+  }
+  if (success) {
+    closeDialog();
+  }
 }
 
 function showDriveError(error) {
@@ -813,46 +1032,93 @@ function signOutOfGoogle() {
   setStatus('Signed out of Google Drive.');
 }
 
-async function refreshDriveFileList() {
+async function refreshDriveFileList({ folderId = currentDriveFolderId } = {}) {
   clearDriveError();
+  if (!driveFolderPath.length) {
+    driveFolderPath = [{ id: DRIVE_ROOT_ID, name: DRIVE_ROOT_LABEL }];
+  }
+  currentDriveFolderId = folderId || DRIVE_ROOT_ID;
   if (editorElements.driveFilesWrapper) {
     editorElements.driveFilesWrapper.hidden = true;
   }
+  if (driveDialogMode === 'save') {
+    clearDriveSelection();
+  }
   try {
     await ensureDriveAccess({ promptUser: true });
+    const query = [
+      `'${currentDriveFolderId}' in parents`,
+      'trashed=false',
+      "(mimeType='application/vnd.google-apps.folder' or mimeType='text/plain' or mimeType='text/markdown' or name contains '.md' or name contains '.markdown')"
+    ].join(' and ');
     const response = await gapi.client.drive.files.list({
-      pageSize: 50,
-      orderBy: 'modifiedTime desc',
-      q: "mimeType='text/plain' or name contains '.md'",
-      fields: 'files(id, name, modifiedTime)'
+      pageSize: 100,
+      orderBy: 'folder,name_natural',
+      q: query,
+      fields: 'files(id, name, mimeType, modifiedTime)'
     });
     const files = response.result.files || [];
     populateDriveFiles(files);
-    editorElements.driveFilesWrapper.hidden = files.length === 0;
-    if (files.length === 0) {
-      editorElements.driveFilesWrapper.hidden = true;
-      editorElements.dialogAlert.textContent = 'No compatible files found in Google Drive.';
+    const hasEntries = files.length > 0;
+    if (editorElements.driveFilesWrapper) {
+      editorElements.driveFilesWrapper.hidden = !hasEntries;
+    }
+    if (!hasEntries) {
+      editorElements.dialogAlert.textContent =
+        driveDialogMode === 'open'
+          ? 'No Markdown files found in this folder.'
+          : 'This folder is empty. Save a file here to get started.';
       editorElements.dialogAlert.hidden = false;
     }
+    updateDrivePathDisplay();
   } catch (error) {
     showDriveError(error);
   }
 }
 
 function populateDriveFiles(files) {
+  if (!editorElements.driveFilesBody) {
+    return;
+  }
   editorElements.driveFilesBody.innerHTML = '';
+  const isSaveMode = driveDialogMode === 'save';
   files.forEach((file) => {
     const row = document.createElement('tr');
     const nameCell = document.createElement('td');
     const modifiedCell = document.createElement('td');
-    nameCell.textContent = file.name;
-    modifiedCell.textContent = file.modifiedTime ? new Date(file.modifiedTime).toLocaleString() : '';
+    const nameWrapper = document.createElement('span');
+    nameWrapper.classList.add('entry-name');
+    const icon = document.createElement('span');
+    icon.classList.add('entry-icon');
+    const label = document.createElement('span');
+    label.textContent = file.name || 'Untitled';
+    nameWrapper.appendChild(icon);
+    nameWrapper.appendChild(label);
+    nameCell.appendChild(nameWrapper);
+    const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
+    if (isFolder) {
+      row.classList.add('folder-row');
+      icon.textContent = '📁';
+      modifiedCell.textContent = '';
+      row.addEventListener('click', () => {
+        enterDriveFolder(file);
+      });
+    } else {
+      icon.textContent = '📄';
+      modifiedCell.textContent = file.modifiedTime ? new Date(file.modifiedTime).toLocaleString() : '';
+      if (isSaveMode) {
+        row.addEventListener('click', () => {
+          selectDriveFileForSave(file, row);
+        });
+      } else {
+        row.addEventListener('click', () => {
+          loadDriveFile(file.id, file.name);
+          closeDialog();
+        });
+      }
+    }
     row.appendChild(nameCell);
     row.appendChild(modifiedCell);
-    row.addEventListener('click', () => {
-      loadDriveFile(file.id, file.name);
-      closeDialog();
-    });
     editorElements.driveFilesBody.appendChild(row);
   });
 }
@@ -873,35 +1139,38 @@ async function loadDriveFile(fileId, name) {
   }
 }
 
-async function saveToDrive(forceNew = false) {
+async function saveToDrive({ forceNew = false, folderId = null, fileName = null, fileId = null } = {}) {
   clearDriveError();
   try {
     await ensureDriveAccess({ promptUser: true });
-    let fileId = currentFileId;
-    let fileName = currentFileName;
-    if (forceNew || !fileId) {
-      const suggestedName = currentFileName || 'Untitled.md';
+    let targetFileId = fileId ?? (forceNew ? null : currentFileId);
+    let targetFileName = fileName ?? currentFileName ?? 'Untitled.md';
+    if ((forceNew && !fileName) || (!targetFileId && !fileName)) {
+      const suggestedName = ensureMarkdownExtension(targetFileName);
       const input = window.prompt('File name', suggestedName);
       if (!input) {
-        return;
+        return false;
       }
-      fileName = input.endsWith('.md') ? input : `${input}.md`;
-      fileId = forceNew ? null : currentFileId;
+      targetFileName = ensureMarkdownExtension(input);
+    } else {
+      targetFileName = ensureMarkdownExtension(targetFileName);
     }
     const content = editorContent;
-    const result = await uploadToDrive(fileId, fileName, content);
+    const result = await uploadToDrive(targetFileId, targetFileName, content, targetFileId ? null : folderId);
     currentFileId = result.id;
     currentFileName = result.name;
     isDirty = false;
     updateFileIndicator();
     localStorage.setItem('markdown-editor-current-file', JSON.stringify({ id: currentFileId, name: currentFileName }));
     setStatus(`Saved ${currentFileName} to Google Drive.`, 'success');
+    return true;
   } catch (error) {
     showDriveError(error);
+    return false;
   }
 }
 
-async function uploadToDrive(fileId, fileName, content) {
+async function uploadToDrive(fileId, fileName, content, folderId = null) {
   const boundary = '-------314159265358979323846';
   const delimiter = `\r\n--${boundary}\r\n`;
   const closeDelimiter = `\r\n--${boundary}--`;
@@ -909,6 +1178,9 @@ async function uploadToDrive(fileId, fileName, content) {
     name: fileName,
     mimeType: 'text/plain'
   };
+  if (!fileId && folderId) {
+    metadata.parents = [folderId];
+  }
   const multipartRequestBody =
     delimiter +
     'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
