@@ -20,15 +20,25 @@ To work locally without a server, simply open `index.html` in a browser. For ful
 
 ## Google Drive configuration
 
-Google requires that you supply your own OAuth client ID (and optionally an API key) for Drive access. Configure these values via the meta tags in `index.html`.
+Google requires that you supply your own OAuth client ID (and optionally an API key) for Drive access. In production you should provide these credentials via a secure runtime configuration so they are never committed to the repository. The app attempts to load `/config/google-drive.json` (served by your hosting platform or backend) which should return JSON with `clientId` and `apiKey` fields.
 
 1. Visit the [Google Cloud Console](https://console.cloud.google.com/).
 2. Create a project (or choose an existing one) and enable the **Google Drive API**.
 3. Create credentials:
    - **OAuth 2.0 Client ID** (type: Web application). Add your GitHub Pages origin to the authorised JavaScript origins.
-   - **API key** *(optional)*. If you choose to use one, restrict it to the origin that will host the editor and copy it into the `google-api-key` meta tag.
-4. Update the placeholder value in the `<meta name="google-oauth-client-id">` tag inside `index.html` with your client ID. If you created an API key, place it in the `<meta name="google-api-key">` tag.
-5. Deploy the updated files. When you open the editor, click **Sign in** to authorise Google Drive access, then use **Open**, **Save**, or **Save as** to work with Drive files.
+   - **API key** *(optional)*. Restrict it to the origin that will host the editor and provide it at runtime alongside the client ID.
+4. Configure your hosting platform to expose the credentials at `/config/google-drive.json` or an equivalent authenticated endpoint. The payload should resemble:
+
+   ```json
+   {
+     "clientId": "YOUR_CLIENT_ID",
+     "apiKey": "YOUR_OPTIONAL_API_KEY"
+   }
+   ```
+
+   Never commit these values to source control.
+5. For local development you may still update the `<meta name="google-oauth-client-id">` tag inside `index.html` with your client ID so sign-in works when serving the files directly from disk.
+6. Deploy the updated files and configuration. When you open the editor, click **Sign in** to authorise Google Drive access, then use **Open**, **Save**, or **Save as** to work with Drive files.
 
 > ⚠️ The app requests the `drive.file` and `drive.readonly` scopes. Ensure your OAuth consent screen is configured for external users if you plan to share the app.
 
@@ -46,7 +56,7 @@ Google requires that you supply your own OAuth client ID (and optionally an API 
 
 ## Development notes
 
-- The app persists the current document and last opened file in the browser's `localStorage`. Google OAuth configuration is provided via static meta tags.
+- The app persists the current document and last opened file in the browser's `localStorage`. Google OAuth configuration is loaded from a secure runtime endpoint when available (falling back to the meta tag for local development).
 - Offline support caches the static assets; Google Drive actions require an active internet connection.
 - Because everything is static, you can fork and customise the UI without setting up a toolchain.
 
