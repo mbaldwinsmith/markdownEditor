@@ -1,7 +1,7 @@
 'use strict';
 
 const editorElements = {
-  textarea: document.getElementById('markdown-input'),
+  editor: document.getElementById('markdown-input'),
   wordCount: document.getElementById('word-count'),
   charCount: document.getElementById('char-count'),
   fileIndicator: document.getElementById('current-file'),
@@ -32,6 +32,8 @@ let isDirty = true;
 let gapiReady = false;
 let gapiInitPromise = null;
 let googleAuthInstance = null;
+let editorContent = '';
+let lastSelection = { start: 0, end: 0 };
 
 const discoveryDocs = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
 const scopes = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
@@ -52,8 +54,12 @@ Start typing in the editor to craft your Markdown documents. Use the toolbar but
 
 function init() {
   const savedContent = localStorage.getItem('markdown-editor-content');
-  editorElements.textarea.value = savedContent ?? defaultMarkdown;
-  updateCounts(editorElements.textarea.value);
+  const initialContent = savedContent ?? defaultMarkdown;
+  applyEditorUpdate(initialContent, initialContent.length, initialContent.length, {
+    persistContent: false,
+    markDirty: false,
+    focus: false
+  });
   loadStoredCredentials();
   restoreLastFile();
   updateDriveButtons(false);
@@ -66,6 +72,280 @@ function updateCounts(content) {
   const characters = content.length;
   editorElements.wordCount.textContent = words;
   editorElements.charCount.textContent = characters;
+}
+
+function renderInlineMarkdown(text) {
+  const fragment = document.createDocumentFragment();
+  const pattern = /\*\*([^*]+)\*\*|\*([^*]+)\*/gu;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = pattern.exec(text)) !== null) {
+    const matchStart = match.index;
+    if (matchStart > lastIndex) {
+      fragment.appendChild(document.createTextNode(text.slice(lastIndex, matchStart)));
+    }
+
+    if (match[1] !== undefined) {
+      fragment.appendChild(document.createTextNode('**'));
+      const strong = document.createElement('span');
+      strong.classList.add('md-strong');
+      strong.textContent = match[1];
+      fragment.appendChild(strong);
+      fragment.appendChild(document.createTextNode('**'));
+    } else if (match[2] !== undefined) {
+      fragment.appendChild(document.createTextNode('*'));
+      const emphasis = document.createElement('span');
+      emphasis.classList.add('md-em');
+      emphasis.textContent = match[2];
+      fragment.appendChild(emphasis);
+      fragment.appendChild(document.createTextNode('*'));
+    }
+
+    lastIndex = pattern.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+  }
+
+  if (!fragment.childNodes.length) {
+    fragment.appendChild(document.createTextNode(text));
+  }
+
+  return fragment;
+}
+
+function renderFormattedMarkdown(content) {
+  const editor = editorElements.editor;
+  if (!editor) {
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  const lines = content.length ? content.split(/\n/u) : [''];
+
+  lines.forEach((line, index) => {
+    const lineElement = document.createElement('div');
+    lineElement.classList.add('editor-line');
+
+    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/u);
+    if (headingMatch) {
+      const level = Math.min(headingMatch[1].length, 6);
+      lineElement.classList.add(`heading-${level}`);
+    }
+
+    if (!line) {
+      lineElement.innerHTML = '&#8203;';
+    } else {
+      lineElement.textContent = '';
+      lineElement.appendChild(renderInlineMarkdown(line));
+    }
+
+    fragment.appendChild(lineElement);
+
+    if (index < lines.length - 1) {
+      fragment.appendChild(document.createTextNode('\n'));
+    }
+  });
+
+  editor.innerHTML = '';
+  editor.appendChild(fragment);
+}
+
+function getPlainTextFromEditor() {
+  const editor = editorElements.editor;
+  if (!editor) {
+    return '';
+  }
+  return (editor.textContent || '').replace(/\u200B/gu, '');
+}
+
+function getSelectionOffsets() {
+  const editor = editorElements.editor;
+  if (!editor) {
+    return { start: 0, end: 0 };
+  }
+
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) {
+    return { start: 0, end: 0 };
+  }
+
+  const range = selection.getRangeAt(0);
+  if (!editor.contains(range.startContainer) || !editor.contains(range.endContainer)) {
+    return { start: 0, end: 0 };
+  }
+
+  const preRange = range.cloneRange();
+  preRange.selectNodeContents(editor);
+  preRange.setEnd(range.startContainer, range.startOffset);
+  const start = preRange.toString().replace(/\u200B/gu, '').length;
+  const selectedLength = range.toString().replace(/\u200B/gu, '').length;
+
+  return { start, end: start + selectedLength };
+}
+
+function resolveOffset(offset) {
+  const editor = editorElements.editor;
+  if (!editor) {
+    return { node: null, offset: 0 };
+  }
+
+  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, null);
+  let node = walker.nextNode();
+  let traversed = 0;
+
+  while (node) {
+    const text = node.textContent || '';
+    const clean = text.replace(/\u200B/gu, '');
+    const length = clean.length;
+
+    if (traversed + length >= offset) {
+      if (length === 0) {
+        return { node, offset: 0 };
+      }
+
+      const withinNode = offset - traversed;
+      let actualOffset = 0;
+      let consumed = 0;
+
+      for (let index = 0; index < text.length; index += 1) {
+        if (text[index] === '\u200B') {
+          continue;
+        }
+
+        if (consumed === withinNode) {
+          actualOffset = index;
+          break;
+        }
+
+        consumed += 1;
+        actualOffset = index + 1;
+      }
+
+      if (withinNode === length) {
+        actualOffset = text.length;
+      }
+
+      return { node, offset: actualOffset };
+    }
+
+    traversed += length;
+    node = walker.nextNode();
+  }
+
+  return { node: editor, offset: editor.childNodes.length };
+}
+
+function setSelectionRange(start, end) {
+  const editor = editorElements.editor;
+  if (!editor) {
+    return;
+  }
+
+  const totalLength = editorContent.length;
+  const clampedStart = Math.max(0, Math.min(start, totalLength));
+  const clampedEnd = Math.max(0, Math.min(end, totalLength));
+
+  const selection = window.getSelection();
+  if (!selection) {
+    return;
+  }
+
+  const range = document.createRange();
+  const startPosition = resolveOffset(clampedStart);
+  const endPosition = resolveOffset(clampedEnd);
+
+  try {
+    if (startPosition.node) {
+      range.setStart(startPosition.node, startPosition.offset);
+    } else {
+      range.setStart(editor, 0);
+    }
+
+    if (endPosition.node) {
+      range.setEnd(endPosition.node, endPosition.offset);
+    } else {
+      range.setEnd(editor, editor.childNodes.length);
+    }
+  } catch (error) {
+    console.warn('Unable to set selection range:', error);
+    return;
+  }
+
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function focusEditor() {
+  const editor = editorElements.editor;
+  if (!editor) {
+    return;
+  }
+  if (document.activeElement !== editor) {
+    editor.focus();
+  }
+}
+
+function applyEditorUpdate(content, selectionStart = content.length, selectionEnd = selectionStart, options = {}) {
+  const editor = editorElements.editor;
+  if (!editor) {
+    return;
+  }
+
+  const { markDirty = true, persistContent = true, focus = true } = options;
+  const previousScrollTop = editor.scrollTop;
+  const previousScrollLeft = editor.scrollLeft;
+
+  editorContent = content;
+  renderFormattedMarkdown(content);
+
+  editor.scrollTop = previousScrollTop;
+  editor.scrollLeft = previousScrollLeft;
+
+  updateCounts(content);
+
+  if (persistContent) {
+    localStorage.setItem('markdown-editor-content', content);
+  }
+
+  if (markDirty) {
+    isDirty = true;
+  } else {
+    isDirty = false;
+  }
+
+  updateFileIndicator();
+
+  if (focus) {
+    editor.focus();
+  }
+
+  setSelectionRange(selectionStart, selectionEnd);
+  lastSelection = { start: selectionStart, end: selectionEnd };
+}
+
+function handleEditorInput() {
+  const { start, end } = getSelectionOffsets();
+  const value = getPlainTextFromEditor();
+  applyEditorUpdate(value, start, end, { focus: false });
+}
+
+function updateSelectionCache() {
+  const editor = editorElements.editor;
+  if (!editor) {
+    return;
+  }
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) {
+    return;
+  }
+  const anchor = selection.anchorNode;
+  const focus = selection.focusNode;
+  if (anchor && focus && editor.contains(anchor) && editor.contains(focus)) {
+    lastSelection = getSelectionOffsets();
+  }
 }
 
 function setStatus(message, type = 'info') {
@@ -87,15 +367,16 @@ function updateFileIndicator() {
 }
 
 function attachEventListeners() {
-  editorElements.textarea.addEventListener('input', () => {
-    const value = editorElements.textarea.value;
-    updateCounts(value);
-    isDirty = true;
-    localStorage.setItem('markdown-editor-content', value);
-    updateFileIndicator();
-  });
+  const editor = editorElements.editor;
+  editor.addEventListener('input', () => handleEditorInput());
+  editor.addEventListener('keyup', () => updateSelectionCache());
+  editor.addEventListener('mouseup', () => updateSelectionCache());
+  editor.addEventListener('blur', () => updateSelectionCache());
+
+  document.addEventListener('selectionchange', () => updateSelectionCache());
 
   editorElements.toolbarButtons.forEach((button) => {
+    button.addEventListener('mousedown', (event) => event.preventDefault());
     button.addEventListener('click', () => applyMarkdown(button.dataset.action));
   });
 
@@ -151,8 +432,8 @@ function registerServiceWorker() {
 }
 
 function applyMarkdown(action) {
-  const textarea = editorElements.textarea;
-  textarea.focus();
+  focusEditor();
+  setSelectionRange(lastSelection.start, lastSelection.end);
 
   switch (action) {
     case 'bold':
@@ -194,32 +475,28 @@ function applyMarkdown(action) {
 }
 
 function wrapSelection(before, after, placeholder) {
-  const textarea = editorElements.textarea;
-  const { selectionStart, selectionEnd, value } = textarea;
-  const selected = value.slice(selectionStart, selectionEnd) || placeholder;
-  const newText = `${before}${selected}${after}`;
-  textarea.setRangeText(newText, selectionStart, selectionEnd, 'end');
-
-  const newStart = selectionStart + before.length;
+  const { start, end } = getSelectionOffsets();
+  const value = editorContent;
+  const selected = value.slice(start, end) || placeholder;
+  const newValue = `${value.slice(0, start)}${before}${selected}${after}${value.slice(end)}`;
+  const newStart = start + before.length;
   const newEnd = newStart + selected.length;
-  textarea.setSelectionRange(newStart, newEnd);
-  triggerEditorUpdate();
+  applyEditorUpdate(newValue, newStart, newEnd);
 }
 
 function insertSnippet(snippet) {
-  const textarea = editorElements.textarea;
-  const { selectionStart, selectionEnd } = textarea;
-  textarea.setRangeText(snippet, selectionStart, selectionEnd, 'end');
-  const cursorPosition = selectionStart + snippet.length;
-  textarea.setSelectionRange(cursorPosition, cursorPosition);
-  triggerEditorUpdate();
+  const { start, end } = getSelectionOffsets();
+  const value = editorContent;
+  const newValue = `${value.slice(0, start)}${snippet}${value.slice(end)}`;
+  const cursorPosition = start + snippet.length;
+  applyEditorUpdate(newValue, cursorPosition, cursorPosition);
 }
 
 function applyLinePrefix(prefix, placeholder = '') {
-  const textarea = editorElements.textarea;
-  const { selectionStart, selectionEnd, value } = textarea;
-  const lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1;
-  let lineEnd = value.indexOf('\n', selectionEnd);
+  const value = editorContent;
+  const { start, end } = getSelectionOffsets();
+  const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+  let lineEnd = value.indexOf('\n', end);
   if (lineEnd === -1) {
     lineEnd = value.length;
   }
@@ -244,16 +521,18 @@ function applyLinePrefix(prefix, placeholder = '') {
     return `${prefix}${cleaned}`;
   });
   const updated = updatedLines.join('\n');
-  textarea.setRangeText(updated, lineStart, lineEnd, 'end');
-  textarea.setSelectionRange(lineStart, lineStart + updated.length);
-  triggerEditorUpdate();
+  const firstLine = updatedLines[0] ?? '';
+  const selectionStart = lineStart + Math.min(prefix.length, firstLine.length);
+  const selectionEnd = selectionStart + Math.max(firstLine.length - prefix.length, 0);
+  const newValue = `${value.slice(0, lineStart)}${updated}${value.slice(lineEnd)}`;
+  applyEditorUpdate(newValue, selectionStart, selectionEnd);
 }
 
 function applyList(ordered) {
-  const textarea = editorElements.textarea;
-  const { selectionStart, selectionEnd, value } = textarea;
-  const lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1;
-  let lineEnd = value.indexOf('\n', selectionEnd);
+  const value = editorContent;
+  const { start, end } = getSelectionOffsets();
+  const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+  let lineEnd = value.indexOf('\n', end);
   if (lineEnd === -1) {
     lineEnd = value.length;
   }
@@ -272,9 +551,8 @@ function applyList(ordered) {
     return `- ${cleaned}`;
   });
   const updated = updatedLines.join('\n');
-  textarea.setRangeText(updated, lineStart, lineEnd, 'end');
-  textarea.setSelectionRange(lineStart, lineStart + updated.length);
-  triggerEditorUpdate();
+  const newValue = `${value.slice(0, lineStart)}${updated}${value.slice(lineEnd)}`;
+  applyEditorUpdate(newValue, lineStart, lineStart + updated.length);
 }
 
 function insertLink() {
@@ -291,14 +569,6 @@ function insertImage() {
     return;
   }
   wrapSelection('![', `](${url})`, 'alt text');
-}
-
-function triggerEditorUpdate() {
-  const value = editorElements.textarea.value;
-  updateCounts(value);
-  isDirty = true;
-  localStorage.setItem('markdown-editor-content', value);
-  updateFileIndicator();
 }
 
 function openDialog() {
@@ -499,13 +769,9 @@ async function loadDriveFile(fileId, name) {
     await ensureDriveAccess();
     const response = await gapi.client.drive.files.get({ fileId, alt: 'media' });
     const content = response.body || response.result || '';
-    editorElements.textarea.value = content;
-    updateCounts(content);
     currentFileId = fileId;
     currentFileName = name;
-    isDirty = false;
-    updateFileIndicator();
-    localStorage.setItem('markdown-editor-content', content);
+    applyEditorUpdate(content, content.length, content.length, { markDirty: false });
     localStorage.setItem('markdown-editor-current-file', JSON.stringify({ id: fileId, name }));
     setStatus(`Loaded ${name} from Google Drive.`, 'success');
   } catch (error) {
@@ -528,7 +794,7 @@ async function saveToDrive(forceNew = false) {
       fileName = input.endsWith('.md') ? input : `${input}.md`;
       fileId = forceNew ? null : currentFileId;
     }
-    const content = editorElements.textarea.value;
+    const content = editorContent;
     const result = await uploadToDrive(fileId, fileName, content);
     currentFileId = result.id;
     currentFileName = result.name;
@@ -587,7 +853,8 @@ window.onGapiLoaded = () => {
 };
 
 document.addEventListener('keydown', (event) => {
-  if (event.target === editorElements.textarea && event.ctrlKey) {
+  const isModifier = event.ctrlKey || event.metaKey;
+  if (event.target === editorElements.editor && isModifier) {
     switch (event.key.toLowerCase()) {
       case 'b':
         event.preventDefault();
