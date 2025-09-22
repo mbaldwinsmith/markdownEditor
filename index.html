@@ -6,6 +6,8 @@
     <title>Markdown Editor PWA</title>
     <meta name="description" content="Progressive Web App Markdown editor with Google Drive sync." />
     <meta name="theme-color" content="#1f2937" />
+    <meta name="google-oauth-client-id" content="YOUR_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com" />
+    <meta name="google-api-key" content="" />
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" type="image/svg+xml" href="icons/icon-192.svg" />
     <link rel="stylesheet" href="styles.css" />
@@ -28,7 +30,6 @@
           <button type="button" data-action="horizontal-rule" aria-label="Insert horizontal rule">HR</button>
         </nav>
         <div class="toolbar" aria-label="Google Drive actions">
-          <button type="button" class="secondary-button" id="drive-settings">Drive settings</button>
           <button type="button" class="secondary-button" id="drive-sign-in">Sign in</button>
           <button type="button" class="secondary-button" id="drive-sign-out" hidden>Sign out</button>
           <button type="button" class="secondary-button" id="drive-open" disabled>Open</button>
@@ -73,16 +74,11 @@
         </div>
         <div class="dialog-body">
           <div id="drive-alert" class="alert" hidden></div>
-          <label>
-            Google API key
-            <input type="text" id="drive-api-key" placeholder="AIza..." autocomplete="off" />
-          </label>
-          <label>
-            OAuth client ID
-            <input type="text" id="drive-client-id" placeholder="12345.apps.googleusercontent.com" autocomplete="off" />
-          </label>
+          <p id="drive-config-status" class="dialog-description">
+            Update the <code>google-oauth-client-id</code> meta tag in <code>index.html</code> with your OAuth client ID to enable
+            Drive sync.
+          </p>
           <div class="toolbar">
-            <button type="button" id="drive-connect" class="primary">Connect</button>
             <button type="button" id="drive-refresh-files" class="secondary-button">Refresh files</button>
           </div>
           <div class="drive-files" id="drive-files" hidden>
@@ -104,6 +100,12 @@
     </div>
 
     <script src="app.js" defer></script>
+    <script
+      defer
+      src="https://accounts.google.com/gsi/client"
+      onload="onGoogleAccountsLoaded()"
+      onerror="console.error('Failed to load Google Identity Services script');"
+    ></script>
     <script defer src="https://apis.google.com/js/api.js?onload=onGapiLoaded"></script>
   </body>
 </html>
