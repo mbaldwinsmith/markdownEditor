@@ -50,7 +50,7 @@ let pendingSaveFileId = null;
 let pendingSaveFileName = '';
 
 const discoveryDocs = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
-const scopes = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
+const scopes = 'https://www.googleapis.com/auth/drive';
 
 const driveConfigEndpoint = '/config/google-drive.json';
 
@@ -1281,20 +1281,26 @@ window.onGoogleAccountsLoaded = () => {
 };
 
 document.addEventListener('keydown', (event) => {
+  const editor = editorElements.editor;
   const isModifier = event.ctrlKey || event.metaKey;
-  if (event.target === editorElements.editor && isModifier) {
-    switch (event.key.toLowerCase()) {
-      case 'b':
-        event.preventDefault();
-        applyMarkdown('bold');
-        break;
-      case 'i':
-        event.preventDefault();
-        applyMarkdown('italic');
-        break;
-      default:
-        break;
-    }
+  if (!editor || !isModifier) {
+    return;
+  }
+  const target = event.target;
+  if (target instanceof Node && !editor.contains(target)) {
+    return;
+  }
+  switch (event.key.toLowerCase()) {
+    case 'b':
+      event.preventDefault();
+      applyMarkdown('bold');
+      break;
+    case 'i':
+      event.preventDefault();
+      applyMarkdown('italic');
+      break;
+    default:
+      break;
   }
 });
 
