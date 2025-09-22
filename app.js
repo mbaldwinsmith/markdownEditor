@@ -14,16 +14,13 @@ const editorElements = {
   dialogAlert: document.getElementById('drive-alert'),
   driveFilesWrapper: document.getElementById('drive-files'),
   driveFilesBody: document.getElementById('drive-files-body'),
-  driveSettingsButton: document.getElementById('drive-settings'),
-  driveConnectButton: document.getElementById('drive-connect'),
   driveRefreshButton: document.getElementById('drive-refresh-files'),
   driveOpenButton: document.getElementById('drive-open'),
   driveSaveButton: document.getElementById('drive-save'),
   driveSaveAsButton: document.getElementById('drive-save-as'),
   driveSignInButton: document.getElementById('drive-sign-in'),
   driveSignOutButton: document.getElementById('drive-sign-out'),
-  apiKeyInput: document.getElementById('drive-api-key'),
-  clientIdInput: document.getElementById('drive-client-id')
+  driveConfigStatus: document.getElementById('drive-config-status')
 };
 
 let currentFileId = null;
@@ -31,12 +28,19 @@ let currentFileName = 'Untitled.md';
 let isDirty = true;
 let gapiReady = false;
 let gapiInitPromise = null;
-let googleAuthInstance = null;
 let editorContent = '';
 let lastSelection = { start: 0, end: 0 };
+let tokenClient = null;
+let gisReady = false;
+let accessToken = null;
 
 const discoveryDocs = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
 const scopes = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
+
+const googleDriveConfig = Object.freeze({
+  clientId: document.querySelector('meta[name="google-oauth-client-id"]')?.content?.trim() ?? '',
+  apiKey: document.querySelector('meta[name="google-api-key"]')?.content?.trim() ?? ''
+});
 
 const defaultMarkdown = `# Welcome to the Markdown Editor PWA
 
@@ -49,7 +53,7 @@ Start typing in the editor to craft your Markdown documents. Use the toolbar but
 - Save your documents to Google Drive
 - Install the app to work offline as a Progressive Web App
 
-> Tip: provide your Google API key and OAuth client ID in the Drive settings dialog to enable cloud sync.
+> Tip: Update the `google-oauth-client-id` meta tag in `index.html` with your OAuth client ID to enable Google Drive sync.
 `;
 
 function init() {
@@ -60,9 +64,12 @@ function init() {
     markDirty: false,
     focus: false
   });
-  loadStoredCredentials();
   restoreLastFile();
   updateDriveButtons(false);
+  updateDriveConfigMessage();
+  if (!isDriveConfigured()) {
+    setStatus('Configure your Google OAuth client ID in index.html to enable Google Drive sync.', 'error');
+  }
   attachEventListeners();
   registerServiceWorker();
 }
@@ -380,18 +387,14 @@ function attachEventListeners() {
     button.addEventListener('click', () => applyMarkdown(button.dataset.action));
   });
 
-  editorElements.driveSettingsButton.addEventListener('click', () => openDialog());
   editorElements.dialogClose.addEventListener('click', () => closeDialog());
   editorElements.dialogCancel.addEventListener('click', () => closeDialog());
 
-  editorElements.driveConnectButton.addEventListener('click', () => {
-    saveCredentials();
-    initializeGapiClient().catch((error) => showDriveError(error));
-  });
-
-  editorElements.driveRefreshButton.addEventListener('click', () => {
-    refreshDriveFileList();
-  });
+  if (editorElements.driveRefreshButton) {
+    editorElements.driveRefreshButton.addEventListener('click', () => {
+      refreshDriveFileList();
+    });
+  }
 
   editorElements.driveOpenButton.addEventListener('click', () => {
     openDialog();
@@ -573,10 +576,11 @@ function insertImage() {
 
 function openDialog() {
   clearDriveError();
+  updateDriveConfigMessage();
   editorElements.dialog.classList.add('active');
   editorElements.dialog.setAttribute('aria-hidden', 'false');
   editorElements.driveFilesWrapper.hidden = true;
-  editorElements.dialog.querySelector('input')?.focus();
+  editorElements.driveRefreshButton?.focus();
 }
 
 function closeDialog() {
@@ -584,30 +588,27 @@ function closeDialog() {
   editorElements.dialog.setAttribute('aria-hidden', 'true');
 }
 
-function loadStoredCredentials() {
-  const stored = JSON.parse(localStorage.getItem('markdown-editor-drive-credentials') || '{}');
-  if (stored.apiKey) {
-    editorElements.apiKeyInput.value = stored.apiKey;
-  }
-  if (stored.clientId) {
-    editorElements.clientIdInput.value = stored.clientId;
-  }
-}
-
-function saveCredentials() {
-  const apiKey = editorElements.apiKeyInput.value.trim();
-  const clientId = editorElements.clientIdInput.value.trim();
-  if (!apiKey || !clientId) {
-    setStatus('Enter both an API key and OAuth client ID before saving.', 'error');
+function showDriveError(error) {
+  if (!error) {
     return;
   }
-  localStorage.setItem('markdown-editor-drive-credentials', JSON.stringify({ apiKey, clientId }));
-  setStatus('Saved Google API credentials locally.', 'success');
-}
-
-function showDriveError(error) {
+  if (error?.message === 'popup_closed_by_user' || error?.message === 'user_cancelled') {
+    setStatus('Google sign-in was canceled.');
+    return;
+  }
   console.error(error);
-  const message = typeof error === 'string' ? error : error?.result?.error?.message || error?.message || 'Unable to complete the Google Drive request.';
+  let message = 'Unable to complete the Google Drive request.';
+  const code = error?.result?.error?.code ?? error?.status;
+  if (code === 401) {
+    clearAccessToken();
+    message = 'Google Drive authorization expired. Please sign in again.';
+  } else if (typeof error === 'string') {
+    message = error;
+  } else if (error?.result?.error?.message) {
+    message = error.result.error.message;
+  } else if (error?.message) {
+    message = error.message;
+  }
   editorElements.dialogAlert.textContent = message;
   editorElements.dialogAlert.hidden = false;
   setStatus(message, 'error');
@@ -618,23 +619,132 @@ function clearDriveError() {
   editorElements.dialogAlert.textContent = '';
 }
 
+function isDriveConfigured() {
+  return Boolean(googleDriveConfig.clientId && !googleDriveConfig.clientId.startsWith('YOUR_'));
+}
+
+function updateDriveConfigMessage() {
+  if (!editorElements.driveConfigStatus) {
+    return;
+  }
+  if (isDriveConfigured()) {
+    editorElements.driveConfigStatus.textContent =
+      'Your OAuth client ID is configured. Sign in to browse Google Drive files.';
+  } else {
+    editorElements.driveConfigStatus.textContent =
+      'Set the google-oauth-client-id meta tag in index.html to your OAuth client ID to enable Drive sync.';
+  }
+}
+
+function clearAccessToken() {
+  accessToken = null;
+  if (typeof gapi !== 'undefined' && gapi?.client?.setToken) {
+    gapi.client.setToken(null);
+  }
+  if (editorElements.driveFilesBody) {
+    editorElements.driveFilesBody.innerHTML = '';
+  }
+  if (editorElements.driveFilesWrapper) {
+    editorElements.driveFilesWrapper.hidden = true;
+  }
+  updateDriveButtons(false);
+}
+
 function updateDriveButtons(isSignedIn) {
   const disabled = !isSignedIn;
   editorElements.driveOpenButton.disabled = disabled;
   editorElements.driveSaveButton.disabled = disabled;
   editorElements.driveSaveAsButton.disabled = disabled;
+  if (editorElements.driveRefreshButton) {
+    editorElements.driveRefreshButton.disabled = disabled;
+  }
   editorElements.driveSignInButton.hidden = isSignedIn;
   editorElements.driveSignOutButton.hidden = !isSignedIn;
-  editorElements.driveStatus.textContent = isSignedIn ? 'Connected to Google Drive' : 'Not connected';
+  if (!isSignedIn && !isDriveConfigured()) {
+    editorElements.driveStatus.textContent = 'OAuth client ID not configured';
+  } else {
+    editorElements.driveStatus.textContent = isSignedIn ? 'Connected to Google Drive' : 'Not connected';
+  }
 }
 
-function getCredentials() {
-  const apiKey = editorElements.apiKeyInput.value.trim();
-  const clientId = editorElements.clientIdInput.value.trim();
-  if (!apiKey || !clientId) {
-    throw new Error('Provide both an API key and OAuth client ID to connect to Google Drive.');
+async function waitForGis() {
+  if (gisReady && window.google?.accounts?.oauth2) {
+    return;
   }
-  return { apiKey, clientId };
+  await new Promise((resolve) => {
+    const check = () => {
+      if (gisReady && window.google?.accounts?.oauth2) {
+        resolve();
+      } else {
+        window.setTimeout(check, 100);
+      }
+    };
+    check();
+  });
+}
+
+function ensureTokenClient() {
+  if (tokenClient) {
+    return tokenClient;
+  }
+  if (!window.google?.accounts?.oauth2) {
+    return null;
+  }
+  if (!isDriveConfigured()) {
+    return null;
+  }
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: googleDriveConfig.clientId,
+    scope: scopes,
+    callback: () => {}
+  });
+  return tokenClient;
+}
+
+async function requestAccessToken({ forcePrompt = false } = {}) {
+  await waitForGis();
+  const client = ensureTokenClient();
+  if (!client) {
+    throw new Error('Google Identity Services is not ready. Please verify your OAuth client ID configuration.');
+  }
+  return new Promise((resolve, reject) => {
+    client.callback = (response) => {
+      if (response.error) {
+        reject(new Error(response.error_description || response.error));
+        return;
+      }
+      accessToken = response.access_token;
+      if (typeof gapi !== 'undefined' && gapi?.client?.setToken) {
+        gapi.client.setToken({ access_token: accessToken });
+      }
+      updateDriveButtons(true);
+      resolve(accessToken);
+    };
+    try {
+      const shouldPrompt = forcePrompt || !accessToken;
+      client.requestAccessToken({ prompt: shouldPrompt ? 'consent' : '' });
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+async function ensureDriveAccess({ promptUser = false, forcePrompt = false } = {}) {
+  if (!isDriveConfigured()) {
+    throw new Error('Set the google-oauth-client-id meta tag in index.html before connecting to Google Drive.');
+  }
+  await initializeGapiClient();
+  if (!forcePrompt && accessToken) {
+    if (typeof gapi !== 'undefined' && gapi?.client?.setToken) {
+      gapi.client.setToken({ access_token: accessToken });
+    }
+    updateDriveButtons(true);
+    return accessToken;
+  }
+  if (!promptUser && !forcePrompt) {
+    throw new Error('Sign in to Google Drive to continue.');
+  }
+  return requestAccessToken({ forcePrompt });
 }
 
 async function initializeGapiClient() {
@@ -645,51 +755,35 @@ async function initializeGapiClient() {
     return gapiInitPromise;
   }
 
+async function waitForGapi() {
   try {
-    const { apiKey, clientId } = getCredentials();
-    gapiInitPromise = new Promise((resolve, reject) => {
-      gapi.load('client:auth2', async () => {
-        try {
-          await gapi.client.init({
-            apiKey,
-            clientId,
-            discoveryDocs,
-            scope: scopes
-          });
-          googleAuthInstance = gapi.auth2.getAuthInstance();
-          googleAuthInstance.isSignedIn.listen(updateSigninStatus);
-          updateSigninStatus(googleAuthInstance.isSignedIn.get());
-          resolve();
-        } catch (error) {
-          gapiInitPromise = null;
-          reject(error);
+    gapiInitPromise = gapi.client
+      .init({
+        discoveryDocs
+      })
+      .then(() => {
+        if (googleDriveConfig.apiKey) {
+          gapi.client.setApiKey(googleDriveConfig.apiKey);
         }
+      })
+      .catch((error) => {
+        gapiInitPromise = null;
+        throw error;
       });
-    });
     await gapiInitPromise;
-    return;
   } catch (error) {
     gapiInitPromise = null;
     throw error;
   }
 }
 
-function updateSigninStatus(isSignedIn) {
-  updateDriveButtons(isSignedIn);
-  if (isSignedIn) {
-    setStatus('Signed in to Google Drive.', 'success');
-  } else {
-    setStatus('Signed out of Google Drive.');
-  }
-}
-
 async function waitForGapi() {
-  if (gapiReady) {
+  if (gapiReady && window.gapi) {
     return;
   }
   await new Promise((resolve) => {
     const check = () => {
-      if (gapiReady) {
+      if (gapiReady && window.gapi) {
         resolve();
       } else {
         window.setTimeout(check, 100);
@@ -699,34 +793,36 @@ async function waitForGapi() {
   });
 }
 
-async function ensureDriveAccess() {
-  await initializeGapiClient();
-  if (!googleAuthInstance) {
-    throw new Error('Unable to initialize Google authentication.');
-  }
-  if (!googleAuthInstance.isSignedIn.get()) {
-    await googleAuthInstance.signIn();
-  }
-}
-
 async function signInToGoogle() {
+  clearDriveError();
   try {
-    await ensureDriveAccess();
+    await ensureDriveAccess({ promptUser: true, forcePrompt: true });
+    setStatus('Signed in to Google Drive.', 'success');
   } catch (error) {
     showDriveError(error);
   }
 }
 
 function signOutOfGoogle() {
-  if (googleAuthInstance) {
-    googleAuthInstance.signOut();
+  if (accessToken && window.google?.accounts?.oauth2) {
+    try {
+      google.accounts.oauth2.revoke(accessToken, () => {});
+    } catch (error) {
+      console.warn('Failed to revoke Google access token:', error);
+    }
   }
+  clearDriveError();
+  clearAccessToken();
+  setStatus('Signed out of Google Drive.');
 }
 
 async function refreshDriveFileList() {
   clearDriveError();
+  if (editorElements.driveFilesWrapper) {
+    editorElements.driveFilesWrapper.hidden = true;
+  }
   try {
-    await ensureDriveAccess();
+    await ensureDriveAccess({ promptUser: true });
     const response = await gapi.client.drive.files.list({
       pageSize: 50,
       orderBy: 'modifiedTime desc',
@@ -765,8 +861,9 @@ function populateDriveFiles(files) {
 }
 
 async function loadDriveFile(fileId, name) {
+  clearDriveError();
   try {
-    await ensureDriveAccess();
+    await ensureDriveAccess({ promptUser: true });
     const response = await gapi.client.drive.files.get({ fileId, alt: 'media' });
     const content = response.body || response.result || '';
     currentFileId = fileId;
@@ -782,7 +879,7 @@ async function loadDriveFile(fileId, name) {
 async function saveToDrive(forceNew = false) {
   clearDriveError();
   try {
-    await ensureDriveAccess();
+    await ensureDriveAccess({ promptUser: true });
     let fileId = currentFileId;
     let fileName = currentFileName;
     if (forceNew || !fileId) {
@@ -849,7 +946,14 @@ function restoreLastFile() {
 
 window.onGapiLoaded = () => {
   gapiReady = true;
-  restoreLastFile();
+};
+
+window.onGoogleAccountsLoaded = () => {
+  gisReady = true;
+  if (isDriveConfigured()) {
+    ensureTokenClient();
+  }
+  updateDriveConfigMessage();
 };
 
 document.addEventListener('keydown', (event) => {
