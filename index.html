@@ -77,8 +77,12 @@
             Provide Google Drive credentials through your secure runtime configuration to enable Drive sync. For local
             development you can still supply a <code>google-oauth-client-id</code> meta tag value.
           </p>
-          <div class="toolbar">
-            <button type="button" id="drive-refresh-files" class="secondary-button">Refresh files</button>
+          <div class="drive-controls">
+            <div class="toolbar">
+              <button type="button" id="drive-refresh-files" class="secondary-button">Refresh</button>
+              <button type="button" id="drive-folder-up" class="secondary-button" disabled>Up one level</button>
+            </div>
+            <nav id="drive-breadcrumbs" class="drive-breadcrumbs" aria-label="Current folder"></nav>
           </div>
           <div class="drive-files" id="drive-files" hidden>
             <table>
@@ -90,6 +94,11 @@
               </thead>
               <tbody id="drive-files-body"></tbody>
             </table>
+          </div>
+          <div id="drive-save-controls" class="drive-save-controls" hidden>
+            <label class="visually-hidden" for="drive-file-name">File name</label>
+            <input type="text" id="drive-file-name" name="drive-file-name" placeholder="File name" autocomplete="off" />
+            <button type="button" id="drive-save-confirm" class="primary">Save here</button>
           </div>
         </div>
         <div class="dialog-footer">
