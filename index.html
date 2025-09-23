@@ -42,39 +42,50 @@
     </header>
     <main>
       <div class="editor-container">
-        <div class="file-title">
-          <label class="visually-hidden" for="file-title-input">File title</label>
-          <input
-            type="text"
-            id="file-title-input"
-            name="file-title"
-            autocomplete="off"
-            placeholder="Untitled.md"
-          />
-        </div>
-        <div class="editor-wrapper">
-          <div class="editor-surface">
-            <div
-              id="markdown-input"
-              class="editor"
-              contenteditable="true"
-              role="textbox"
-              aria-label="Markdown input"
-              spellcheck="true"
-            ></div>
+        <div class="editor-layout">
+          <nav id="table-of-contents" class="toc" aria-label="Document outline">
+            <div class="toc-header">
+              <h2>Contents</h2>
+            </div>
+            <ol id="toc-list" class="toc-list" hidden></ol>
+            <p id="toc-empty" class="toc-empty" hidden>Add headings to build a table of contents.</p>
+          </nav>
+          <div class="editor-content">
+            <div class="file-title">
+              <label class="visually-hidden" for="file-title-input">File title</label>
+              <input
+                type="text"
+                id="file-title-input"
+                name="file-title"
+                autocomplete="off"
+                placeholder="Untitled.md"
+              />
+            </div>
+            <div class="editor-wrapper">
+              <div class="editor-surface">
+                <div
+                  id="markdown-input"
+                  class="editor"
+                  contenteditable="true"
+                  role="textbox"
+                  aria-label="Markdown input"
+                  spellcheck="true"
+                ></div>
+              </div>
+            </div>
+            <div class="status-bar">
+              <div>
+                <span>Words: <strong id="word-count">0</strong></span>
+                <span>Characters: <strong id="char-count">0</strong></span>
+              </div>
+              <div>
+                <span class="file-indicator" id="current-file">Untitled.md</span>
+                <span id="drive-status"></span>
+              </div>
+            </div>
+            <div id="status-message" role="status" aria-live="polite"></div>
           </div>
         </div>
-        <div class="status-bar">
-          <div>
-            <span>Words: <strong id="word-count">0</strong></span>
-            <span>Characters: <strong id="char-count">0</strong></span>
-          </div>
-          <div>
-            <span class="file-indicator" id="current-file">Untitled.md</span>
-            <span id="drive-status"></span>
-          </div>
-        </div>
-        <div id="status-message" role="status" aria-live="polite"></div>
       </div>
     </main>
 
