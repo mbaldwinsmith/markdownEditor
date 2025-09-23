@@ -199,6 +199,27 @@ function getPlainTextFromEditor() {
   return lines.join('\n');
 }
 
+function measureTextLengthToBoundary(container, offset) {
+  const editor = editorElements.editor;
+  if (!editor) {
+    return 0;
+  }
+
+  const boundaryRange = document.createRange();
+  boundaryRange.selectNodeContents(editor);
+
+  try {
+    boundaryRange.setEnd(container, offset);
+  } catch (error) {
+    console.warn('Unable to measure selection boundary:', error);
+    return 0;
+  }
+
+  const fragment = boundaryRange.cloneContents();
+  const text = fragment.textContent || '';
+  return text.replace(/\u200B/gu, '').length;
+}
+
 function getSelectionOffsets() {
   const editor = editorElements.editor;
   if (!editor) {
@@ -215,13 +236,16 @@ function getSelectionOffsets() {
     return { start: 0, end: 0 };
   }
 
-  const preRange = range.cloneRange();
-  preRange.selectNodeContents(editor);
-  preRange.setEnd(range.startContainer, range.startOffset);
-  const start = preRange.toString().replace(/\u200B/gu, '').length;
-  const selectedLength = range.toString().replace(/\u200B/gu, '').length;
+  const start = measureTextLengthToBoundary(range.startContainer, range.startOffset);
+  const end = measureTextLengthToBoundary(range.endContainer, range.endOffset);
 
-  return { start, end: start + selectedLength };
+  const clampedStart = Math.max(0, Math.min(start, editorContent.length));
+  const clampedEnd = Math.max(0, Math.min(end, editorContent.length));
+
+  const normalizedStart = Math.min(clampedStart, clampedEnd);
+  const normalizedEnd = Math.max(clampedStart, clampedEnd);
+
+  return { start: normalizedStart, end: normalizedEnd };
 }
 
 function resolveOffset(offset) {
@@ -276,6 +300,56 @@ function resolveOffset(offset) {
   return { node: editor, offset: editor.childNodes.length };
 }
 
+function findFirstTextNode(node) {
+  if (!node) {
+    return null;
+  }
+
+  if (node.nodeType === Node.TEXT_NODE) {
+    return node;
+  }
+
+  const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, null);
+  return walker.nextNode();
+}
+
+function findNextTextNode(node) {
+  let current = node;
+  while (current) {
+    let sibling = current.nextSibling;
+    while (sibling) {
+      const textNode = findFirstTextNode(sibling);
+      if (textNode) {
+        return textNode;
+      }
+      sibling = sibling.nextSibling;
+    }
+    current = current.parentNode;
+  }
+  return null;
+}
+
+function normalizeCaretPosition(position) {
+  const { node, offset } = position;
+  if (!node || node.nodeType !== Node.TEXT_NODE) {
+    return position;
+  }
+
+  const text = node.textContent || '';
+  if (text !== '\n' || offset < text.length) {
+    return position;
+  }
+
+  const nextTextNode = findNextTextNode(node);
+  if (!nextTextNode) {
+    return position;
+  }
+
+  const nextText = nextTextNode.textContent || '';
+  const nextOffset = nextText === '\u200B' ? nextText.length : 0;
+  return { node: nextTextNode, offset: nextOffset };
+}
+
 function setSelectionRange(start, end) {
   const editor = editorElements.editor;
   if (!editor) {
@@ -292,8 +366,8 @@ function setSelectionRange(start, end) {
   }
 
   const range = document.createRange();
-  const startPosition = resolveOffset(clampedStart);
-  const endPosition = resolveOffset(clampedEnd);
+  const startPosition = normalizeCaretPosition(resolveOffset(clampedStart));
+  const endPosition = normalizeCaretPosition(resolveOffset(clampedEnd));
 
   try {
     if (startPosition.node) {
@@ -370,6 +444,27 @@ function handleEditorInput() {
   applyEditorUpdate(value, start, end, { focus: false });
 }
 
+function handleEditorKeyDown(event) {
+  if (event.key !== 'Enter' || event.isComposing) {
+    return;
+  }
+
+  const editor = editorElements.editor;
+  if (!editor) {
+    return;
+  }
+
+  event.preventDefault();
+
+  const { start, end } = getSelectionOffsets();
+  const before = editorContent.slice(0, start);
+  const after = editorContent.slice(end);
+  const nextContent = `${before}\n${after}`;
+  const caretPosition = start + 1;
+
+  applyEditorUpdate(nextContent, caretPosition, caretPosition);
+}
+
 function updateSelectionCache() {
   const editor = editorElements.editor;
   if (!editor) {
@@ -407,6 +502,7 @@ function updateFileIndicator() {
 function attachEventListeners() {
   const editor = editorElements.editor;
   editor.addEventListener('input', () => handleEditorInput());
+  editor.addEventListener('keydown', handleEditorKeyDown);
   editor.addEventListener('keyup', () => updateSelectionCache());
   editor.addEventListener('mouseup', () => updateSelectionCache());
   editor.addEventListener('blur', () => updateSelectionCache());
