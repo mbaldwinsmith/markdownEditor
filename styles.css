@@ -1,12 +1,33 @@
 :root {
   color-scheme: light dark;
-  --bg: #0f172a;
+  --bg-gradient-start: #0f172a;
+  --bg-gradient-end: #1e293b;
   --surface: rgba(15, 23, 42, 0.75);
+  --surface-strong: rgba(15, 23, 42, 0.95);
+  --header-bg: rgba(15, 23, 42, 0.85);
+  --input-bg: rgba(15, 23, 42, 0.6);
   --text: #e2e8f0;
+  --text-muted: rgba(226, 232, 240, 0.7);
+  --text-subtle: rgba(226, 232, 240, 0.75);
   --accent: #38bdf8;
   --accent-dark: #0ea5e9;
   --border: rgba(148, 163, 184, 0.4);
+  --button-bg: rgba(148, 163, 184, 0.12);
+  --button-bg-hover: rgba(148, 163, 184, 0.2);
+  --button-border-hover: rgba(148, 163, 184, 0.3);
+  --overlay: rgba(15, 23, 42, 0.75);
   --shadow: rgba(15, 23, 42, 0.4);
+  --surface-shadow: rgba(15, 23, 42, 0.45);
+  --strong-shadow: rgba(15, 23, 42, 0.7);
+  --table-border: rgba(148, 163, 184, 0.2);
+  --row-hover: rgba(56, 189, 248, 0.15);
+  --row-selected: rgba(56, 189, 248, 0.25);
+  --breadcrumb-text: rgba(226, 232, 240, 0.7);
+  --breadcrumb-separator: rgba(148, 163, 184, 0.6);
+  --breadcrumb-disabled: rgba(226, 232, 240, 0.6);
+  --danger-bg: rgba(248, 113, 113, 0.18);
+  --danger-border: rgba(248, 113, 113, 0.35);
+  --danger-text: #fecaca;
 }
 
 * {
@@ -16,7 +37,7 @@
 body {
   margin: 0;
   font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background: linear-gradient(160deg, #0f172a, #1e293b);
+  background: linear-gradient(160deg, var(--bg-gradient-start), var(--bg-gradient-end));
   color: var(--text);
   min-height: 100vh;
   display: flex;
@@ -28,7 +49,7 @@ header {
   top: 0;
   z-index: 10;
   backdrop-filter: blur(12px);
-  background: rgba(15, 23, 42, 0.85);
+  background: var(--header-bg);
   border-bottom: 1px solid var(--border);
   box-shadow: 0 4px 12px var(--shadow);
 }
@@ -58,7 +79,7 @@ h1 {
 }
 
 .toolbar button, .toolbar .secondary-button {
-  background: rgba(148, 163, 184, 0.12);
+  background: var(--button-bg);
   border: 1px solid transparent;
   color: var(--text);
   padding: 0.45rem 0.6rem;
@@ -70,8 +91,8 @@ h1 {
 
 .toolbar button:hover,
 .toolbar .secondary-button:hover {
-  background: rgba(148, 163, 184, 0.2);
-  border-color: rgba(148, 163, 184, 0.3);
+  background: var(--button-bg-hover);
+  border-color: var(--button-border-hover);
   transform: translateY(-1px);
 }
 
@@ -120,7 +141,7 @@ main {
   padding: 0.75rem 1rem;
   border-radius: 0.85rem;
   border: 1px solid var(--border);
-  background: rgba(15, 23, 42, 0.6);
+  background: var(--input-bg);
   color: var(--text);
   font-size: 1.05rem;
   font-weight: 600;
@@ -129,7 +150,7 @@ main {
 }
 
 .file-title input::placeholder {
-  color: rgba(226, 232, 240, 0.5);
+  color: var(--text-muted);
 }
 
 .file-title input:focus-visible {
@@ -159,7 +180,7 @@ main {
   font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   font-size: 1rem;
   line-height: 1.6;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.45);
+  box-shadow: 0 10px 30px var(--surface-shadow);
   outline: none;
   overflow-y: auto;
   white-space: pre-wrap;
@@ -230,7 +251,7 @@ main {
   align-items: center;
   margin-top: 1rem;
   font-size: 0.85rem;
-  color: rgba(226, 232, 240, 0.7);
+  color: var(--text-muted);
 }
 
 .status-bar span {
@@ -244,7 +265,7 @@ main {
 #status-message {
   margin-top: 0.75rem;
   font-size: 0.85rem;
-  color: rgba(226, 232, 240, 0.75);
+  color: var(--text-subtle);
   min-height: 1.2rem;
 }
 
@@ -255,7 +276,7 @@ main {
 #drive-dialog {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.75);
+  background: var(--overlay);
   display: none;
   place-items: center;
   padding: 1.5rem;
@@ -267,12 +288,12 @@ main {
 }
 
 #drive-dialog .dialog-content {
-  background: rgba(15, 23, 42, 0.95);
+  background: var(--surface-strong);
   border: 1px solid var(--border);
   border-radius: 1rem;
   padding: 1.5rem;
   width: min(500px, 100%);
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.7);
+  box-shadow: 0 20px 40px var(--strong-shadow);
 }
 
 .dialog-header {
@@ -285,6 +306,37 @@ main {
 .dialog-header h2 {
   margin: 0;
   font-size: 1.1rem;
+}
+
+#drive-dialog-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  background: var(--button-bg);
+  color: var(--text);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+#drive-dialog-close:hover {
+  background: var(--button-bg-hover);
+  border-color: var(--button-border-hover);
+  transform: translateY(-1px);
+}
+
+#drive-dialog-close:active {
+  transform: translateY(0);
+}
+
+#drive-dialog-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .dialog-body {
@@ -304,7 +356,7 @@ main {
   padding: 0.5rem 0.65rem;
   border-radius: 0.5rem;
   border: 1px solid var(--border);
-  background: rgba(15, 23, 42, 0.65);
+  background: var(--input-bg);
   color: var(--text);
 }
 
@@ -323,7 +375,7 @@ main {
   padding: 0.45rem 0.8rem;
   border-radius: 0.5rem;
   border: 1px solid transparent;
-  background: rgba(148, 163, 184, 0.12);
+  background: var(--button-bg);
   color: var(--text);
   cursor: pointer;
 }
@@ -339,7 +391,7 @@ main {
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 0.75rem;
-  background: rgba(15, 23, 42, 0.65);
+  background: var(--surface);
 }
 
 .drive-files table {
@@ -350,12 +402,12 @@ main {
 .drive-files th,
 .drive-files td {
   padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  border-bottom: 1px solid var(--table-border);
   text-align: left;
 }
 
 .drive-files tr:hover {
-  background: rgba(56, 189, 248, 0.15);
+  background: var(--row-hover);
   cursor: pointer;
 }
 
@@ -375,7 +427,7 @@ main {
   align-items: center;
   gap: 0.25rem;
   font-size: 0.85rem;
-  color: rgba(226, 232, 240, 0.7);
+  color: var(--breadcrumb-text);
 }
 
 .drive-breadcrumbs button {
@@ -392,13 +444,13 @@ main {
 }
 
 .drive-breadcrumbs button:disabled {
-  color: rgba(226, 232, 240, 0.6);
+  color: var(--breadcrumb-disabled);
   cursor: default;
   text-decoration: none;
 }
 
 .drive-breadcrumbs .separator {
-  color: rgba(148, 163, 184, 0.6);
+  color: var(--breadcrumb-separator);
   margin: 0 0.15rem;
 }
 
@@ -417,7 +469,7 @@ main {
 }
 
 .drive-files tr.selected {
-  background: rgba(56, 189, 248, 0.25);
+  background: var(--row-selected);
 }
 
 .drive-save-controls {
@@ -435,15 +487,15 @@ main {
   border-radius: 0.5rem;
   border: 1px solid transparent;
   padding: 0.45rem 0.75rem;
-  background: rgba(148, 163, 184, 0.12);
+  background: var(--button-bg);
   color: var(--text);
   cursor: pointer;
   transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
 .drive-save-controls button:hover {
-  background: rgba(148, 163, 184, 0.2);
-  border-color: rgba(148, 163, 184, 0.3);
+  background: var(--button-bg-hover);
+  border-color: var(--button-border-hover);
   transform: translateY(-1px);
 }
 
@@ -481,10 +533,42 @@ main {
 .alert {
   padding: 0.75rem 1rem;
   border-radius: 0.75rem;
-  background: rgba(248, 113, 113, 0.18);
-  border: 1px solid rgba(248, 113, 113, 0.35);
-  color: #fecaca;
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  color: var(--danger-text);
   font-size: 0.85rem;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg-gradient-start: #f8fafc;
+    --bg-gradient-end: #e2e8f0;
+    --surface: rgba(255, 255, 255, 0.92);
+    --surface-strong: #ffffff;
+    --header-bg: rgba(248, 250, 252, 0.85);
+    --input-bg: rgba(255, 255, 255, 0.95);
+    --text: #0f172a;
+    --text-muted: rgba(15, 23, 42, 0.6);
+    --text-subtle: rgba(15, 23, 42, 0.7);
+    --border: rgba(15, 23, 42, 0.12);
+    --button-bg: rgba(148, 163, 184, 0.15);
+    --button-bg-hover: rgba(148, 163, 184, 0.25);
+    --button-border-hover: rgba(148, 163, 184, 0.4);
+    --overlay: rgba(15, 23, 42, 0.3);
+    --shadow: rgba(15, 23, 42, 0.08);
+    --surface-shadow: rgba(15, 23, 42, 0.1);
+    --strong-shadow: rgba(15, 23, 42, 0.12);
+    --table-border: rgba(15, 23, 42, 0.08);
+    --row-hover: rgba(56, 189, 248, 0.12);
+    --row-selected: rgba(56, 189, 248, 0.18);
+    --breadcrumb-text: rgba(15, 23, 42, 0.65);
+    --breadcrumb-separator: rgba(15, 23, 42, 0.35);
+    --breadcrumb-disabled: rgba(15, 23, 42, 0.4);
+    --danger-bg: rgba(248, 113, 113, 0.15);
+    --danger-border: rgba(248, 113, 113, 0.3);
+    --danger-text: #b91c1c;
+  }
+
 }
 
 @media (max-width: 768px) {
