@@ -52,7 +52,8 @@ let pendingSaveFileId = null;
 let pendingSaveFileName = '';
 
 const discoveryDocs = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
-const scopes = 'https://www.googleapis.com/auth/drive';
+const scopes =
+  'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly';
 
 const driveConfigEndpoint = '/config/google-drive.json';
 

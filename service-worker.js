@@ -1,4 +1,4 @@
-const CACHE_NAME = 'markdown-editor-cache-v1';
+const CACHE_NAME = 'markdown-editor-cache-v2';
 const OFFLINE_ASSETS = [
   './',
   './index.html',
@@ -8,6 +8,10 @@ const OFFLINE_ASSETS = [
   './icons/icon-192.svg',
   './icons/icon-512.svg'
 ];
+
+const OFFLINE_ASSET_URLS = new Set(
+  OFFLINE_ASSETS.map((asset) => new URL(asset, self.location.origin).href)
+);
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -32,6 +36,14 @@ self.addEventListener('fetch', (event) => {
 
   const requestUrl = new URL(event.request.url);
   if (requestUrl.protocol !== 'http:' && requestUrl.protocol !== 'https:') {
+    return;
+  }
+
+  if (requestUrl.origin !== self.location.origin) {
+    return;
+  }
+
+  if (!OFFLINE_ASSET_URLS.has(requestUrl.href)) {
     return;
   }
 
