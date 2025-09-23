@@ -445,7 +445,7 @@ function handleEditorInput() {
 }
 
 function handleEditorKeyDown(event) {
-  if (event.key !== 'Enter' || event.isComposing) {
+  if (event.isComposing) {
     return;
   }
 
@@ -454,15 +454,34 @@ function handleEditorKeyDown(event) {
     return;
   }
 
-  event.preventDefault();
+  if (event.key === 'Enter') {
+    event.preventDefault();
 
-  const { start, end } = getSelectionOffsets();
-  const before = editorContent.slice(0, start);
-  const after = editorContent.slice(end);
-  const nextContent = `${before}\n${after}`;
-  const caretPosition = start + 1;
+    const { start, end } = getSelectionOffsets();
+    const before = editorContent.slice(0, start);
+    const after = editorContent.slice(end);
+    const nextContent = `${before}\n${after}`;
+    const caretPosition = start + 1;
 
-  applyEditorUpdate(nextContent, caretPosition, caretPosition);
+    applyEditorUpdate(nextContent, caretPosition, caretPosition);
+    return;
+  }
+
+  if (event.key === 'Backspace') {
+    const { start, end } = getSelectionOffsets();
+    if (start === 0 && end === 0) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const deletionStart = start === end ? Math.max(0, start - 1) : start;
+    const deletionEnd = end;
+    const nextContent = `${editorContent.slice(0, deletionStart)}${editorContent.slice(deletionEnd)}`;
+    const caretPosition = deletionStart;
+
+    applyEditorUpdate(nextContent, caretPosition, caretPosition);
+  }
 }
 
 function updateSelectionCache() {
