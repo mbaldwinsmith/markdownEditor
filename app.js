@@ -43,6 +43,7 @@ let lastSelection = { start: 0, end: 0 };
 let tokenClient = null;
 let gisReady = false;
 let accessToken = null;
+let headerResizeObserver = null;
 
 const DRIVE_ROOT_ID = 'root';
 const DRIVE_ROOT_LABEL = 'My Drive';
@@ -119,6 +120,34 @@ function normalizeDisplayName(name) {
   return trimmed || 'Untitled.md';
 }
 
+function updateHeaderOffset() {
+  const root = document.documentElement;
+  if (!root) {
+    return;
+  }
+
+  const header = document.querySelector('header');
+  const headerHeight = header ? header.getBoundingClientRect().height : 0;
+  root.style.setProperty('--header-offset', `${headerHeight}px`);
+}
+
+function setupHeaderOffsetTracking() {
+  updateHeaderOffset();
+
+  const header = document.querySelector('header');
+  if (header && typeof ResizeObserver !== 'undefined') {
+    if (headerResizeObserver) {
+      headerResizeObserver.disconnect();
+    }
+    headerResizeObserver = new ResizeObserver(() => updateHeaderOffset());
+    headerResizeObserver.observe(header);
+  }
+
+  window.addEventListener('resize', updateHeaderOffset);
+  window.addEventListener('orientationchange', updateHeaderOffset);
+  window.addEventListener('load', updateHeaderOffset);
+}
+
 function getDisplayedFileName() {
   return normalizeDisplayName(pendingFileName);
 }
@@ -147,6 +176,7 @@ async function init() {
   });
   restoreLastFile();
   updateDriveButtons(false);
+  setupHeaderOffsetTracking();
   await loadGoogleDriveConfig();
   if (!isDriveConfigured()) {
     setStatus('Provide Google Drive credentials via your runtime configuration to enable Google Drive sync.', 'error');
