@@ -199,6 +199,27 @@ function getPlainTextFromEditor() {
   return lines.join('\n');
 }
 
+function measureTextLengthToBoundary(container, offset) {
+  const editor = editorElements.editor;
+  if (!editor) {
+    return 0;
+  }
+
+  const boundaryRange = document.createRange();
+  boundaryRange.selectNodeContents(editor);
+
+  try {
+    boundaryRange.setEnd(container, offset);
+  } catch (error) {
+    console.warn('Unable to measure selection boundary:', error);
+    return 0;
+  }
+
+  const fragment = boundaryRange.cloneContents();
+  const text = fragment.textContent || '';
+  return text.replace(/\u200B/gu, '').length;
+}
+
 function getSelectionOffsets() {
   const editor = editorElements.editor;
   if (!editor) {
@@ -215,13 +236,16 @@ function getSelectionOffsets() {
     return { start: 0, end: 0 };
   }
 
-  const preRange = range.cloneRange();
-  preRange.selectNodeContents(editor);
-  preRange.setEnd(range.startContainer, range.startOffset);
-  const start = preRange.toString().replace(/\u200B/gu, '').length;
-  const selectedLength = range.toString().replace(/\u200B/gu, '').length;
+  const start = measureTextLengthToBoundary(range.startContainer, range.startOffset);
+  const end = measureTextLengthToBoundary(range.endContainer, range.endOffset);
 
-  return { start, end: start + selectedLength };
+  const clampedStart = Math.max(0, Math.min(start, editorContent.length));
+  const clampedEnd = Math.max(0, Math.min(end, editorContent.length));
+
+  const normalizedStart = Math.min(clampedStart, clampedEnd);
+  const normalizedEnd = Math.max(clampedStart, clampedEnd);
+
+  return { start: normalizedStart, end: normalizedEnd };
 }
 
 function resolveOffset(offset) {
