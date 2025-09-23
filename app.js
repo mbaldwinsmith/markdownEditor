@@ -444,6 +444,27 @@ function handleEditorInput() {
   applyEditorUpdate(value, start, end, { focus: false });
 }
 
+function handleEditorKeyDown(event) {
+  if (event.key !== 'Enter' || event.isComposing) {
+    return;
+  }
+
+  const editor = editorElements.editor;
+  if (!editor) {
+    return;
+  }
+
+  event.preventDefault();
+
+  const { start, end } = getSelectionOffsets();
+  const before = editorContent.slice(0, start);
+  const after = editorContent.slice(end);
+  const nextContent = `${before}\n${after}`;
+  const caretPosition = start + 1;
+
+  applyEditorUpdate(nextContent, caretPosition, caretPosition);
+}
+
 function updateSelectionCache() {
   const editor = editorElements.editor;
   if (!editor) {
@@ -481,6 +502,7 @@ function updateFileIndicator() {
 function attachEventListeners() {
   const editor = editorElements.editor;
   editor.addEventListener('input', () => handleEditorInput());
+  editor.addEventListener('keydown', handleEditorKeyDown);
   editor.addEventListener('keyup', () => updateSelectionCache());
   editor.addEventListener('mouseup', () => updateSelectionCache());
   editor.addEventListener('blur', () => updateSelectionCache());
