@@ -129,6 +129,14 @@ main {
   padding: 0 1.5rem 3rem;
 }
 
+.editor-layout {
+  display: block;
+}
+
+.editor-content {
+  min-width: 0;
+}
+
 .file-title {
   margin-bottom: 0.75rem;
   display: flex;
@@ -158,6 +166,87 @@ main {
   outline-offset: 2px;
   border-color: var(--accent);
   box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.18);
+}
+
+.toc {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1rem;
+  box-shadow: 0 10px 30px var(--surface-shadow);
+}
+
+.toc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.toc-header h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.toc-list li {
+  margin: 0;
+}
+
+.toc-list a {
+  display: block;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.5rem;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.toc-list a:hover,
+.toc-list a:focus-visible {
+  background: var(--button-bg-hover);
+  color: var(--accent);
+  outline: none;
+}
+
+.toc-level-2 {
+  padding-left: 0.75rem;
+}
+
+.toc-level-3 {
+  padding-left: 1.2rem;
+}
+
+.toc-level-4 {
+  padding-left: 1.65rem;
+}
+
+.toc-level-5 {
+  padding-left: 2.1rem;
+}
+
+.toc-level-6 {
+  padding-left: 2.55rem;
+}
+
+.toc-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
 }
 
 .editor-wrapper {
@@ -260,6 +349,23 @@ main {
 
 .file-indicator {
   font-weight: 600;
+}
+
+@media (min-width: 1024px) {
+  .editor-layout {
+    display: grid;
+    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+    gap: 1.75rem;
+    align-items: start;
+  }
+
+  .toc {
+    display: block;
+    position: sticky;
+    top: 6.5rem;
+    max-height: calc(100vh - 7rem);
+    overflow: auto;
+  }
 }
 
 #status-message {

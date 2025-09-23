@@ -8,6 +8,8 @@ const editorElements = {
   fileIndicator: document.getElementById('current-file'),
   statusMessage: document.getElementById('status-message'),
   driveStatus: document.getElementById('drive-status'),
+  tocList: document.getElementById('toc-list'),
+  tocEmptyState: document.getElementById('toc-empty'),
   toolbarButtons: document.querySelectorAll('[data-action]'),
   dialog: document.getElementById('drive-dialog'),
   dialogClose: document.getElementById('drive-dialog-close'),
@@ -75,6 +77,34 @@ Start typing in the editor to craft your Markdown documents. Use the toolbar but
 
 > Tip: Provide Google Drive credentials via your secure runtime configuration (or the \`google-oauth-client-id\` meta tag for local development) to enable Google Drive sync.
 `;
+
+function slugifyHeadingText(text) {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/gu, '')
+    .replace(/[^a-z0-9]+/gu, '-')
+    .replace(/^-+|-+$/gu, '')
+    .replace(/-{2,}/gu, '-');
+}
+
+function extractHeadingText(rawHeading) {
+  return rawHeading
+    .replace(/!\[(.+?)\]\(.*?\)/gu, '$1')
+    .replace(/\[(.+?)\]\(.*?\)/gu, '$1')
+    .replace(/[`*_~]/gu, '')
+    .trim();
+}
+
+function generateHeadingId(text, level, slugCounts) {
+  const baseSlug = slugifyHeadingText(text);
+  const fallback = `heading-${level}`;
+  const slugKey = (baseSlug || fallback).slice(0, 60).replace(/-+$/gu, '') || fallback;
+  const currentCount = slugCounts.get(slugKey) || 0;
+  const uniqueSlug = currentCount === 0 ? slugKey : `${slugKey}-${currentCount + 1}`;
+  slugCounts.set(slugKey, currentCount + 1);
+  return uniqueSlug;
+}
 
 function ensureMarkdownExtension(name) {
   const trimmed = (name || '').trim();
@@ -182,6 +212,8 @@ function renderFormattedMarkdown(content) {
 
   const fragment = document.createDocumentFragment();
   const lines = content.length ? content.split(/\n/u) : [''];
+  const headings = [];
+  const slugCounts = new Map();
 
   lines.forEach((line, index) => {
     const lineElement = document.createElement('div');
@@ -191,6 +223,11 @@ function renderFormattedMarkdown(content) {
     if (headingMatch) {
       const level = Math.min(headingMatch[1].length, 6);
       lineElement.classList.add(`heading-${level}`);
+      const headingText = extractHeadingText(headingMatch[2]);
+      const displayText = headingText || 'Untitled heading';
+      const headingId = generateHeadingId(displayText, level, slugCounts);
+      lineElement.id = headingId;
+      headings.push({ id: headingId, level, text: displayText });
     }
 
     if (!line) {
@@ -209,6 +246,58 @@ function renderFormattedMarkdown(content) {
 
   editor.innerHTML = '';
   editor.appendChild(fragment);
+  updateTableOfContents(headings);
+}
+
+function updateTableOfContents(headings) {
+  const { tocList, tocEmptyState } = editorElements;
+  if (!tocList || !tocEmptyState) {
+    return;
+  }
+
+  tocList.innerHTML = '';
+
+  if (headings.length === 0) {
+    tocList.hidden = true;
+    tocEmptyState.hidden = false;
+    return;
+  }
+
+  tocList.hidden = false;
+  tocEmptyState.hidden = true;
+
+  const fragment = document.createDocumentFragment();
+
+  headings.forEach((heading) => {
+    const item = document.createElement('li');
+    item.classList.add(`toc-level-${heading.level}`);
+
+    const link = document.createElement('a');
+    link.href = `#${heading.id}`;
+    link.textContent = heading.text;
+    link.addEventListener('click', () => {
+      const target = document.getElementById(heading.id);
+      window.requestAnimationFrame(() => {
+        if (target) {
+          const selection = window.getSelection();
+          if (selection) {
+            const range = document.createRange();
+            range.selectNodeContents(target);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+          }
+        }
+        focusEditor();
+        updateSelectionCache();
+      });
+    });
+
+    item.appendChild(link);
+    fragment.appendChild(item);
+  });
+
+  tocList.appendChild(fragment);
 }
 
 function getPlainTextFromEditor() {
