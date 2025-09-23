@@ -2,6 +2,7 @@
 
 const editorElements = {
   editor: document.getElementById('markdown-input'),
+  fileTitleInput: document.getElementById('file-title-input'),
   wordCount: document.getElementById('word-count'),
   charCount: document.getElementById('char-count'),
   fileIndicator: document.getElementById('current-file'),
@@ -31,6 +32,7 @@ const editorElements = {
 
 let currentFileId = null;
 let currentFileName = 'Untitled.md';
+let pendingFileName = currentFileName;
 let isDirty = true;
 let gapiReady = false;
 let gapiInitPromise = null;
@@ -79,6 +81,29 @@ function ensureMarkdownExtension(name) {
     return 'Untitled.md';
   }
   return /\.md$/iu.test(trimmed) ? trimmed : `${trimmed}.md`;
+}
+
+function normalizeDisplayName(name) {
+  const trimmed = (name || '').trim();
+  return trimmed || 'Untitled.md';
+}
+
+function getDisplayedFileName() {
+  return normalizeDisplayName(pendingFileName);
+}
+
+function hasTitleChanges() {
+  return normalizeDisplayName(pendingFileName) !== normalizeDisplayName(currentFileName);
+}
+
+function getPendingFileNameForSaving() {
+  return ensureMarkdownExtension(getDisplayedFileName());
+}
+
+function updateTitleInput() {
+  if (editorElements.fileTitleInput) {
+    editorElements.fileTitleInput.value = normalizeDisplayName(pendingFileName);
+  }
 }
 
 async function init() {
@@ -444,6 +469,23 @@ function handleEditorInput() {
   applyEditorUpdate(value, start, end, { focus: false });
 }
 
+function handleTitleInputChange() {
+  if (!editorElements.fileTitleInput) {
+    return;
+  }
+  pendingFileName = editorElements.fileTitleInput.value;
+  updateFileIndicator();
+}
+
+function handleTitleInputBlur() {
+  if (!editorElements.fileTitleInput) {
+    return;
+  }
+  pendingFileName = normalizeDisplayName(editorElements.fileTitleInput.value);
+  updateTitleInput();
+  updateFileIndicator();
+}
+
 function handleEditorKeyDown(event) {
   if (event.isComposing) {
     return;
@@ -514,7 +556,8 @@ function setStatus(message, type = 'info') {
 }
 
 function updateFileIndicator() {
-  const indicator = `${currentFileName}${isDirty ? ' • Unsaved changes' : ''}`;
+  const displayName = getDisplayedFileName();
+  const indicator = `${displayName}${isDirty || hasTitleChanges() ? ' • Unsaved changes' : ''}`;
   editorElements.fileIndicator.textContent = indicator;
 }
 
@@ -525,6 +568,17 @@ function attachEventListeners() {
   editor.addEventListener('keyup', () => updateSelectionCache());
   editor.addEventListener('mouseup', () => updateSelectionCache());
   editor.addEventListener('blur', () => updateSelectionCache());
+
+  if (editorElements.fileTitleInput) {
+    editorElements.fileTitleInput.addEventListener('input', () => handleTitleInputChange());
+    editorElements.fileTitleInput.addEventListener('blur', () => handleTitleInputBlur());
+    editorElements.fileTitleInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        editorElements.fileTitleInput.blur();
+      }
+    });
+  }
 
   document.addEventListener('selectionchange', () => updateSelectionCache());
 
@@ -765,9 +819,10 @@ function openDialog(mode = 'open') {
   updateDriveDialogMode();
   refreshDriveFileList({ folderId: currentDriveFolderId });
   if (driveDialogMode === 'save') {
-    const defaultName = ensureMarkdownExtension(currentFileName || 'Untitled.md');
+    const defaultName = getPendingFileNameForSaving();
     if (editorElements.driveFileNameInput) {
       editorElements.driveFileNameInput.value = defaultName;
+      pendingSaveFileName = defaultName;
       window.setTimeout(() => {
         editorElements.driveFileNameInput?.focus();
         editorElements.driveFileNameInput?.select();
@@ -1294,10 +1349,13 @@ async function loadDriveFile(fileId, name) {
     const response = await gapi.client.drive.files.get({ fileId, alt: 'media' });
     const content = response.body || response.result || '';
     currentFileId = fileId;
-    currentFileName = name;
+    const normalizedName = normalizeDisplayName(name);
+    currentFileName = normalizedName;
+    pendingFileName = normalizedName;
+    updateTitleInput();
     applyEditorUpdate(content, content.length, content.length, { markDirty: false });
-    localStorage.setItem('markdown-editor-current-file', JSON.stringify({ id: fileId, name }));
-    setStatus(`Loaded ${name} from Google Drive.`, 'success');
+    localStorage.setItem('markdown-editor-current-file', JSON.stringify({ id: fileId, name: normalizedName }));
+    setStatus(`Loaded ${normalizedName} from Google Drive.`, 'success');
   } catch (error) {
     showDriveError(error);
   }
@@ -1308,7 +1366,7 @@ async function saveToDrive({ forceNew = false, folderId = null, fileName = null,
   try {
     await ensureDriveAccess({ promptUser: true });
     let targetFileId = fileId ?? (forceNew ? null : currentFileId);
-    let targetFileName = fileName ?? currentFileName ?? 'Untitled.md';
+    let targetFileName = fileName ?? getPendingFileNameForSaving();
     if ((forceNew && !fileName) || (!targetFileId && !fileName)) {
       const suggestedName = ensureMarkdownExtension(targetFileName);
       const input = window.prompt('File name', suggestedName);
@@ -1322,11 +1380,14 @@ async function saveToDrive({ forceNew = false, folderId = null, fileName = null,
     const content = editorContent;
     const result = await uploadToDrive(targetFileId, targetFileName, content, targetFileId ? null : folderId);
     currentFileId = result.id;
-    currentFileName = result.name;
+    const savedName = normalizeDisplayName(result?.name || targetFileName);
+    currentFileName = savedName;
+    pendingFileName = savedName;
     isDirty = false;
+    updateTitleInput();
     updateFileIndicator();
-    localStorage.setItem('markdown-editor-current-file', JSON.stringify({ id: currentFileId, name: currentFileName }));
-    setStatus(`Saved ${currentFileName} to Google Drive.`, 'success');
+    localStorage.setItem('markdown-editor-current-file', JSON.stringify({ id: currentFileId, name: savedName }));
+    setStatus(`Saved ${savedName} to Google Drive.`, 'success');
     return true;
   } catch (error) {
     showDriveError(error);
@@ -1371,9 +1432,13 @@ async function uploadToDrive(fileId, fileName, content, folderId = null) {
 function restoreLastFile() {
   const stored = JSON.parse(localStorage.getItem('markdown-editor-current-file') || 'null');
   if (stored?.name) {
-    currentFileName = stored.name;
+    currentFileName = normalizeDisplayName(stored.name);
     currentFileId = stored.id || null;
+  } else {
+    currentFileName = normalizeDisplayName(currentFileName);
   }
+  pendingFileName = currentFileName;
+  updateTitleInput();
   updateFileIndicator();
 }
 
