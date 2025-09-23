@@ -5,6 +5,7 @@
   --surface: rgba(15, 23, 42, 0.75);
   --surface-strong: rgba(15, 23, 42, 0.95);
   --header-bg: rgba(15, 23, 42, 0.85);
+  --header-offset: 0px;
   --input-bg: rgba(15, 23, 42, 0.6);
   --text: #e2e8f0;
   --text-muted: rgba(226, 232, 240, 0.7);
@@ -290,6 +291,7 @@ main {
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
+  scroll-margin-top: var(--header-offset);
 }
 
 .editor-line.heading-1 {
