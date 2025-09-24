@@ -14,6 +14,7 @@ const editorElements = {
   undoButton: document.querySelector('[data-action="undo"]'),
   redoButton: document.querySelector('[data-action="redo"]'),
   modeToggle: document.getElementById('editor-mode-toggle'),
+  themeToggle: document.getElementById('theme-toggle'),
   dialog: document.getElementById('drive-dialog'),
   dialogClose: document.getElementById('drive-dialog-close'),
   dialogCancel: document.getElementById('drive-dialog-cancel'),
@@ -51,11 +52,24 @@ let tokenClient = null;
 let gisReady = false;
 let accessToken = null;
 let headerResizeObserver = null;
+let systemThemeMediaQuery = null;
+let followSystemThemePreference = false;
 
 const CONTENT_STORAGE_KEY = 'markdown-editor-content';
 const BASE_DOCUMENT_TITLE = "Mark's Markdown Editor";
 const INDENTATION_STRING = '  ';
 const PERSISTENCE_DEBOUNCE_MS = 300;
+const THEME_STORAGE_KEY = 'markdown-editor-theme';
+const Theme = {
+  LIGHT: 'light',
+  DARK: 'dark'
+};
+const THEME_COLORS = {
+  [Theme.DARK]: '#1f2937',
+  [Theme.LIGHT]: '#f8fafc'
+};
+
+const themeMetaElement = document.querySelector('meta[name="theme-color"]');
 
 let pendingContentPersistence = null;
 let persistenceTimeoutId = null;
@@ -523,6 +537,138 @@ function setupHeaderOffsetTracking() {
   window.addEventListener('resize', updateHeaderOffset);
   window.addEventListener('orientationchange', updateHeaderOffset);
   window.addEventListener('load', updateHeaderOffset);
+}
+
+function getStoredThemePreference() {
+  try {
+    const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+    if (storedTheme === Theme.DARK || storedTheme === Theme.LIGHT) {
+      return storedTheme;
+    }
+  } catch (error) {
+    console.debug('Unable to read theme preference from local storage.', error);
+  }
+  return null;
+}
+
+function updateMetaThemeColor(theme) {
+  if (!themeMetaElement) {
+    return;
+  }
+  const fallbackColor = THEME_COLORS[Theme.DARK];
+  const themeColor = THEME_COLORS[theme] || fallbackColor;
+  themeMetaElement.setAttribute('content', themeColor);
+}
+
+function updateThemeToggleButton(activeTheme) {
+  const toggle = editorElements.themeToggle;
+  if (!toggle) {
+    return;
+  }
+
+  const nextTheme = activeTheme === Theme.DARK ? Theme.LIGHT : Theme.DARK;
+  const iconElement = toggle.querySelector('.theme-icon i');
+  const labelElement = toggle.querySelector('.button-label');
+  const nextThemeLabel = nextTheme === Theme.DARK ? 'Dark' : 'Light';
+  const toggleDescription = `Switch to ${nextThemeLabel.toLowerCase()} mode`;
+
+  toggle.setAttribute('aria-label', toggleDescription);
+  toggle.setAttribute('title', toggleDescription);
+  toggle.setAttribute('aria-pressed', activeTheme === Theme.DARK ? 'true' : 'false');
+
+  if (iconElement) {
+    iconElement.classList.remove('fa-sun', 'fa-moon');
+    iconElement.classList.add(nextTheme === Theme.DARK ? 'fa-moon' : 'fa-sun');
+  }
+
+  if (labelElement) {
+    labelElement.textContent = nextThemeLabel;
+  }
+}
+
+function applyTheme(theme, { persist = true } = {}) {
+  const root = document.documentElement;
+  if (!root) {
+    return;
+  }
+
+  const resolvedTheme = theme === Theme.LIGHT ? Theme.LIGHT : Theme.DARK;
+  root.dataset.theme = resolvedTheme;
+  root.style.setProperty('color-scheme', resolvedTheme);
+
+  updateMetaThemeColor(resolvedTheme);
+  updateThemeToggleButton(resolvedTheme);
+
+  if (!persist) {
+    return;
+  }
+
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, resolvedTheme);
+  } catch (error) {
+    console.warn('Unable to persist theme preference.', error);
+  }
+}
+
+function handleSystemThemeChange(event) {
+  if (!followSystemThemePreference) {
+    return;
+  }
+  const prefersDark = Boolean(event && event.matches);
+  applyTheme(prefersDark ? Theme.DARK : Theme.LIGHT, { persist: false });
+}
+
+function subscribeToSystemThemeChanges() {
+  if (!systemThemeMediaQuery) {
+    return;
+  }
+
+  if (typeof systemThemeMediaQuery.addEventListener === 'function') {
+    systemThemeMediaQuery.addEventListener('change', handleSystemThemeChange);
+  } else if (typeof systemThemeMediaQuery.addListener === 'function') {
+    systemThemeMediaQuery.addListener(handleSystemThemeChange);
+  }
+}
+
+function unsubscribeFromSystemThemeChanges() {
+  if (!systemThemeMediaQuery) {
+    return;
+  }
+
+  if (typeof systemThemeMediaQuery.removeEventListener === 'function') {
+    systemThemeMediaQuery.removeEventListener('change', handleSystemThemeChange);
+  } else if (typeof systemThemeMediaQuery.removeListener === 'function') {
+    systemThemeMediaQuery.removeListener(handleSystemThemeChange);
+  }
+}
+
+function initializeTheme() {
+  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+    systemThemeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  } else {
+    systemThemeMediaQuery = null;
+  }
+
+  const storedTheme = getStoredThemePreference();
+  followSystemThemePreference = storedTheme === null;
+  const prefersDark = systemThemeMediaQuery ? systemThemeMediaQuery.matches : true;
+  const initialTheme = storedTheme ?? (prefersDark ? Theme.DARK : Theme.LIGHT);
+
+  applyTheme(initialTheme, { persist: false });
+
+  if (followSystemThemePreference) {
+    subscribeToSystemThemeChanges();
+  }
+}
+
+function toggleThemePreference() {
+  const root = document.documentElement;
+  const activeTheme = root && root.dataset.theme === Theme.LIGHT ? Theme.LIGHT : Theme.DARK;
+  const nextTheme = activeTheme === Theme.DARK ? Theme.LIGHT : Theme.DARK;
+
+  followSystemThemePreference = false;
+  unsubscribeFromSystemThemeChanges();
+  applyTheme(nextTheme, { persist: true });
 }
 
 function getDisplayedFileName() {
@@ -1519,6 +1665,10 @@ function attachEventListeners() {
   if (editorElements.modeToggle) {
     editorElements.modeToggle.addEventListener('mousedown', (event) => event.preventDefault());
     editorElements.modeToggle.addEventListener('click', () => toggleEditorMode());
+  }
+
+  if (editorElements.themeToggle) {
+    editorElements.themeToggle.addEventListener('click', () => toggleThemePreference());
   }
 
   editorElements.dialogClose.addEventListener('click', () => closeDialog());
@@ -2540,6 +2690,8 @@ document.addEventListener('keydown', (event) => {
       break;
   }
 });
+
+initializeTheme();
 
 init().catch((error) => {
   console.error('Failed to initialise the Markdown editor.', error);
