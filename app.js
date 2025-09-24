@@ -11,6 +11,7 @@ const editorElements = {
   tocList: document.getElementById('toc-list'),
   tocEmptyState: document.getElementById('toc-empty'),
   toolbarButtons: document.querySelectorAll('[data-action]'),
+  modeToggle: document.getElementById('editor-mode-toggle'),
   dialog: document.getElementById('drive-dialog'),
   dialogClose: document.getElementById('drive-dialog-close'),
   dialogCancel: document.getElementById('drive-dialog-cancel'),
@@ -38,12 +39,32 @@ let pendingFileName = currentFileName;
 let isDirty = true;
 let gapiReady = false;
 let gapiInitPromise = null;
-let editorContent = '';
+let markdownContent = '';
+let htmlContent = '';
+let editorMode = 'markdown';
+let turndownService = null;
 let lastSelection = { start: 0, end: 0 };
 let tokenClient = null;
 let gisReady = false;
 let accessToken = null;
 let headerResizeObserver = null;
+
+const HTML_VOID_ELEMENTS = new Set([
+  'area',
+  'base',
+  'br',
+  'col',
+  'embed',
+  'hr',
+  'img',
+  'input',
+  'link',
+  'meta',
+  'param',
+  'source',
+  'track',
+  'wbr'
+]);
 
 const DRIVE_ROOT_ID = 'root';
 const DRIVE_ROOT_LABEL = 'My Drive';
@@ -78,6 +99,100 @@ Start typing in the editor to craft your Markdown documents. Use the toolbar but
 
 > Tip: Provide Google Drive credentials via your secure runtime configuration (or the \`google-oauth-client-id\` meta tag for local development) to enable Google Drive sync.
 `;
+
+function configureMarkdownConverters() {
+  if (window.marked?.setOptions) {
+    window.marked.setOptions({
+      gfm: true,
+      breaks: true,
+      headerIds: false,
+      mangle: false
+    });
+  }
+
+  if (!turndownService && window.TurndownService) {
+    turndownService = new window.TurndownService({
+      headingStyle: 'atx',
+      codeBlockStyle: 'fenced',
+      bulletListMarker: '-'
+    });
+    if (window.turndownPluginGfm?.gfm) {
+      turndownService.use(window.turndownPluginGfm.gfm);
+    }
+  }
+}
+
+function convertMarkdownToHtml(markdown) {
+  if (window.marked?.parse) {
+    return window.marked.parse(markdown ?? '').trim();
+  }
+  return markdown ?? '';
+}
+
+function convertHtmlToMarkdown(html) {
+  if (turndownService) {
+    try {
+      return turndownService.turndown(html ?? '');
+    } catch (error) {
+      console.warn('Unable to convert HTML to Markdown:', error);
+    }
+  }
+  return html ?? '';
+}
+
+function formatHtmlContentForEditor(html) {
+  if (!html) {
+    return '';
+  }
+
+  const normalized = html.replace(/\r\n/gu, '\n').replace(/>\s+</gu, '>\n<');
+  const lines = normalized.split('\n');
+  const formatted = [];
+  let indentLevel = 0;
+  const indentUnit = '  ';
+
+  lines.forEach((line) => {
+    if (!line) {
+      return;
+    }
+
+    const trimmed = line.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    const isTag = trimmed.startsWith('<');
+    if (!isTag) {
+      formatted.push(line);
+      return;
+    }
+
+    const isComment = /^<!--/u.test(trimmed);
+    const isClosingTag = /^<\//u.test(trimmed);
+    const tagMatch = trimmed.match(/^<([\w:-]+)/u);
+    const tagName = tagMatch ? tagMatch[1].toLowerCase() : '';
+    const isVoidElement = HTML_VOID_ELEMENTS.has(tagName);
+    const isSelfClosing = /\/>$/u.test(trimmed) || isVoidElement;
+
+    if (isClosingTag && !isSelfClosing) {
+      indentLevel = Math.max(indentLevel - 1, 0);
+    }
+
+    const indentation = indentUnit.repeat(indentLevel);
+    formatted.push(`${indentation}${trimmed}`);
+
+    if (
+      !isComment &&
+      !isClosingTag &&
+      !isSelfClosing &&
+      !trimmed.includes('</')
+    ) {
+      indentLevel += 1;
+    }
+  });
+
+  return formatted.join('\n').replace(/\n+$/u, '');
+}
 
 function slugifyHeadingText(text) {
   return text
@@ -167,6 +282,7 @@ function updateTitleInput() {
 }
 
 async function init() {
+  configureMarkdownConverters();
   const savedContent = localStorage.getItem('markdown-editor-content');
   const initialContent = savedContent ?? defaultMarkdown;
   applyEditorUpdate(initialContent, initialContent.length, initialContent.length, {
@@ -182,6 +298,7 @@ async function init() {
     setStatus('Provide Google Drive credentials via your runtime configuration to enable Google Drive sync.', 'error');
   }
   attachEventListeners();
+  updateModeToggleState();
   registerServiceWorker();
 }
 
@@ -240,6 +357,11 @@ function renderFormattedMarkdown(content) {
     return;
   }
 
+  editor.classList.remove('html-mode');
+  const tocContainer = document.getElementById('table-of-contents');
+  if (tocContainer) {
+    tocContainer.hidden = false;
+  }
   const fragment = document.createDocumentFragment();
   const lines = content.length ? content.split(/\n/u) : [''];
   const headings = [];
@@ -277,6 +399,110 @@ function renderFormattedMarkdown(content) {
   editor.innerHTML = '';
   editor.appendChild(fragment);
   updateTableOfContents(headings);
+}
+
+function renderHtmlEditor(content) {
+  const editor = editorElements.editor;
+  if (!editor) {
+    return;
+  }
+
+  editor.classList.add('html-mode');
+  editor.textContent = content || '';
+  const tocContainer = document.getElementById('table-of-contents');
+  if (tocContainer) {
+    tocContainer.hidden = true;
+  }
+  if (editorElements.tocList) {
+    editorElements.tocList.innerHTML = '';
+    editorElements.tocList.hidden = true;
+  }
+  if (editorElements.tocEmptyState) {
+    editorElements.tocEmptyState.hidden = true;
+  }
+}
+
+function getHtmlEditorContent() {
+  const editor = editorElements.editor;
+  if (!editor) {
+    return '';
+  }
+  const text = editor.textContent || '';
+  return text.replace(/\u200B/gu, '');
+}
+
+function setToolbarDisabled(disabled) {
+  editorElements.toolbarButtons.forEach((button) => {
+    button.disabled = disabled;
+    button.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+  });
+}
+
+function updateModeToggleState() {
+  if (!editorElements.modeToggle) {
+    return;
+  }
+  const isHtmlMode = editorMode === 'html';
+  editorElements.modeToggle.textContent = isHtmlMode ? 'Switch to Markdown' : 'Switch to HTML';
+  editorElements.modeToggle.setAttribute('aria-pressed', isHtmlMode ? 'true' : 'false');
+}
+
+function enterHtmlMode() {
+  if (!turndownService) {
+    configureMarkdownConverters();
+  }
+  const convertersReady = Boolean(window.marked?.parse) && Boolean(turndownService);
+  const convertedHtml = convertMarkdownToHtml(markdownContent);
+  htmlContent = convertersReady ? formatHtmlContentForEditor(convertedHtml) : convertedHtml;
+  editorMode = 'html';
+  renderHtmlEditor(htmlContent);
+  setToolbarDisabled(true);
+  updateModeToggleState();
+  if (editorElements.editor) {
+    editorElements.editor.setAttribute('aria-label', 'HTML input');
+  }
+  lastSelection = { start: 0, end: 0 };
+  const statusMessage = convertersReady
+    ? 'HTML mode enabled. Edit the generated HTML or switch back to Markdown.'
+    : 'HTML conversion libraries unavailable. Editing will use raw Markdown text.';
+  setStatus(statusMessage, convertersReady ? 'info' : 'error');
+  focusEditor();
+  const selection = window.getSelection();
+  if (selection && editorElements.editor) {
+    const range = document.createRange();
+    range.selectNodeContents(editorElements.editor);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+}
+
+function exitHtmlMode() {
+  const previousMarkdown = markdownContent;
+  const latestHtml = getHtmlEditorContent();
+  htmlContent = latestHtml;
+  const convertedMarkdown = convertHtmlToMarkdown(latestHtml);
+  const hasChanged = convertedMarkdown !== previousMarkdown;
+  editorMode = 'markdown';
+  applyEditorUpdate(convertedMarkdown, convertedMarkdown.length, convertedMarkdown.length, {
+    focus: true,
+    markDirty: hasChanged || isDirty,
+    persistContent: true
+  });
+  setToolbarDisabled(false);
+  updateModeToggleState();
+  if (editorElements.editor) {
+    editorElements.editor.setAttribute('aria-label', 'Markdown input');
+  }
+  setStatus('Markdown mode enabled.', 'info');
+}
+
+function toggleEditorMode() {
+  if (editorMode === 'markdown') {
+    enterHtmlMode();
+  } else {
+    exitHtmlMode();
+  }
 }
 
 function updateTableOfContents(headings) {
@@ -371,6 +597,10 @@ function getSelectionOffsets() {
     return { start: 0, end: 0 };
   }
 
+  if (editorMode !== 'markdown') {
+    return { start: 0, end: 0 };
+  }
+
   const selection = window.getSelection();
   if (!selection || selection.rangeCount === 0) {
     return { start: 0, end: 0 };
@@ -384,8 +614,8 @@ function getSelectionOffsets() {
   const start = measureTextLengthToBoundary(range.startContainer, range.startOffset);
   const end = measureTextLengthToBoundary(range.endContainer, range.endOffset);
 
-  const clampedStart = Math.max(0, Math.min(start, editorContent.length));
-  const clampedEnd = Math.max(0, Math.min(end, editorContent.length));
+  const clampedStart = Math.max(0, Math.min(start, markdownContent.length));
+  const clampedEnd = Math.max(0, Math.min(end, markdownContent.length));
 
   const normalizedStart = Math.min(clampedStart, clampedEnd);
   const normalizedEnd = Math.max(clampedStart, clampedEnd);
@@ -501,7 +731,7 @@ function setSelectionRange(start, end) {
     return;
   }
 
-  const totalLength = editorContent.length;
+  const totalLength = markdownContent.length;
   const clampedStart = Math.max(0, Math.min(start, totalLength));
   const clampedEnd = Math.max(0, Math.min(end, totalLength));
 
@@ -555,7 +785,8 @@ function applyEditorUpdate(content, selectionStart = content.length, selectionEn
   const previousScrollTop = editor.scrollTop;
   const previousScrollLeft = editor.scrollLeft;
 
-  editorContent = content;
+  editorMode = 'markdown';
+  markdownContent = content;
   renderFormattedMarkdown(content);
 
   editor.scrollTop = previousScrollTop;
@@ -584,6 +815,18 @@ function applyEditorUpdate(content, selectionStart = content.length, selectionEn
 }
 
 function handleEditorInput() {
+  if (editorMode === 'html') {
+    const htmlValue = getHtmlEditorContent();
+    htmlContent = htmlValue;
+    const markdownValue = convertHtmlToMarkdown(htmlValue);
+    markdownContent = markdownValue;
+    updateCounts(markdownValue);
+    localStorage.setItem('markdown-editor-content', markdownValue);
+    isDirty = true;
+    updateFileIndicator();
+    return;
+  }
+
   const { start, end } = getSelectionOffsets();
   const value = getPlainTextFromEditor();
   applyEditorUpdate(value, start, end, { focus: false });
@@ -616,12 +859,16 @@ function handleEditorKeyDown(event) {
     return;
   }
 
+  if (editorMode !== 'markdown') {
+    return;
+  }
+
   if (event.key === 'Enter') {
     event.preventDefault();
 
     const { start, end } = getSelectionOffsets();
-    const before = editorContent.slice(0, start);
-    const after = editorContent.slice(end);
+    const before = markdownContent.slice(0, start);
+    const after = markdownContent.slice(end);
     const nextContent = `${before}\n${after}`;
     const caretPosition = start + 1;
 
@@ -639,7 +886,7 @@ function handleEditorKeyDown(event) {
 
     const deletionStart = start === end ? Math.max(0, start - 1) : start;
     const deletionEnd = end;
-    const nextContent = `${editorContent.slice(0, deletionStart)}${editorContent.slice(deletionEnd)}`;
+    const nextContent = `${markdownContent.slice(0, deletionStart)}${markdownContent.slice(deletionEnd)}`;
     const caretPosition = deletionStart;
 
     applyEditorUpdate(nextContent, caretPosition, caretPosition);
@@ -649,6 +896,9 @@ function handleEditorKeyDown(event) {
 function updateSelectionCache() {
   const editor = editorElements.editor;
   if (!editor) {
+    return;
+  }
+  if (editorMode !== 'markdown') {
     return;
   }
   const selection = window.getSelection();
@@ -706,6 +956,11 @@ function attachEventListeners() {
     button.addEventListener('mousedown', (event) => event.preventDefault());
     button.addEventListener('click', () => applyMarkdown(button.dataset.action));
   });
+
+  if (editorElements.modeToggle) {
+    editorElements.modeToggle.addEventListener('mousedown', (event) => event.preventDefault());
+    editorElements.modeToggle.addEventListener('click', () => toggleEditorMode());
+  }
 
   editorElements.dialogClose.addEventListener('click', () => closeDialog());
   editorElements.dialogCancel.addEventListener('click', () => closeDialog());
@@ -784,6 +1039,11 @@ function registerServiceWorker() {
 }
 
 function applyMarkdown(action) {
+  if (editorMode !== 'markdown') {
+    setStatus('Switch to Markdown mode to use formatting tools.', 'info');
+    return;
+  }
+
   focusEditor();
   setSelectionRange(lastSelection.start, lastSelection.end);
 
@@ -828,7 +1088,7 @@ function applyMarkdown(action) {
 
 function wrapSelection(before, after, placeholder) {
   const { start, end } = getSelectionOffsets();
-  const value = editorContent;
+  const value = markdownContent;
   const selected = value.slice(start, end) || placeholder;
   const newValue = `${value.slice(0, start)}${before}${selected}${after}${value.slice(end)}`;
   const newStart = start + before.length;
@@ -838,14 +1098,14 @@ function wrapSelection(before, after, placeholder) {
 
 function insertSnippet(snippet) {
   const { start, end } = getSelectionOffsets();
-  const value = editorContent;
+  const value = markdownContent;
   const newValue = `${value.slice(0, start)}${snippet}${value.slice(end)}`;
   const cursorPosition = start + snippet.length;
   applyEditorUpdate(newValue, cursorPosition, cursorPosition);
 }
 
 function applyLinePrefix(prefix, placeholder = '') {
-  const value = editorContent;
+  const value = markdownContent;
   const { start, end } = getSelectionOffsets();
   const lineStart = value.lastIndexOf('\n', start - 1) + 1;
   let lineEnd = value.indexOf('\n', end);
@@ -881,7 +1141,7 @@ function applyLinePrefix(prefix, placeholder = '') {
 }
 
 function applyList(ordered) {
-  const value = editorContent;
+  const value = markdownContent;
   const { start, end } = getSelectionOffsets();
   const lineStart = value.lastIndexOf('\n', start - 1) + 1;
   let lineEnd = value.indexOf('\n', end);
@@ -1483,6 +1743,14 @@ async function loadDriveFile(fileId, name) {
 
 async function saveToDrive({ forceNew = false, folderId = null, fileName = null, fileId = null } = {}) {
   clearDriveError();
+  if (editorMode === 'html') {
+    const latestHtml = getHtmlEditorContent();
+    htmlContent = latestHtml;
+    const converted = convertHtmlToMarkdown(latestHtml);
+    markdownContent = converted;
+    updateCounts(converted);
+    localStorage.setItem('markdown-editor-content', converted);
+  }
   try {
     await ensureDriveAccess({ promptUser: true });
     let targetFileId = fileId ?? (forceNew ? null : currentFileId);
@@ -1497,7 +1765,7 @@ async function saveToDrive({ forceNew = false, folderId = null, fileName = null,
     } else {
       targetFileName = ensureMarkdownExtension(targetFileName);
     }
-    const content = editorContent;
+    const content = markdownContent;
     const result = await uploadToDrive(targetFileId, targetFileName, content, targetFileId ? null : folderId);
     currentFileId = result.id;
     const savedName = normalizeDisplayName(result?.name || targetFileName);
