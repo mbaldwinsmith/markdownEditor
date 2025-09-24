@@ -995,7 +995,13 @@ header.legal-header .inner {
 }
 
 .legal-content strong {
-  color: #ffffff;
+  color: var(--accent);
+}
+
+.legal-content .legal-intro {
+  padding: 1.25rem;
+  border-radius: 0.9rem;
+  background: rgba(15, 23, 42, 0.6);
 }
 
 .legal-meta {
