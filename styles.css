@@ -33,6 +33,8 @@
   --danger-border: rgba(248, 113, 113, 0.35);
   --danger-text: #fecaca;
   --legal-intro-bg: rgba(15, 23, 42, 0.6);
+  --font-sans: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
 
 * {
@@ -41,7 +43,7 @@
 
 body {
   margin: 0;
-  font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-sans);
   background: linear-gradient(160deg, var(--bg-gradient-start), var(--bg-gradient-end));
   color: var(--text);
   min-height: 100vh;
@@ -442,7 +444,7 @@ main {
   background: var(--editor-bg);
   color: var(--text);
   border: 1px solid var(--editor-border);
-  font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-mono);
   font-size: 1rem;
   line-height: 1.6;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), var(--editor-shadow);
@@ -458,7 +460,7 @@ main {
 }
 
 .editor.html-mode {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-family: var(--font-mono);
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: anywhere;
