@@ -959,8 +959,19 @@ header.legal-header .inner {
   gap: 1.5rem;
 }
 
+.legal-content > header {
+  position: static;
+  top: auto;
+  z-index: auto;
+  backdrop-filter: none;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
 .legal-content h1 {
-  margin: 0;
+  margin: 0 0 1rem;
+  padding-bottom: 0.35rem;
   font-size: 2.15rem;
   letter-spacing: 0.02em;
 }
