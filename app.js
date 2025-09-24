@@ -41,6 +41,7 @@ let gapiReady = false;
 let gapiInitPromise = null;
 let markdownContent = '';
 let htmlContent = '';
+let lastNormalizedHtml = '';
 let editorMode = 'markdown';
 let turndownService = null;
 let lastSelection = { start: 0, end: 0 };
@@ -222,6 +223,86 @@ function extractHeadingText(rawHeading) {
     .replace(/\[(.+?)\]\(.*?\)/gu, '$1')
     .replace(/[`*_~]/gu, '')
     .trim();
+}
+
+function createHeadingSpacingMap(markdown) {
+  const lines = (markdown || '').split('\n');
+  const spacingMap = new Map();
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const match = lines[index].match(/^\s{0,3}(#{1,6})\s+(.*)$/u);
+    if (!match) {
+      continue;
+    }
+
+    let blankLines = 0;
+    let pointer = index + 1;
+    while (pointer < lines.length && lines[pointer].trim() === '') {
+      blankLines += 1;
+      pointer += 1;
+    }
+
+    const level = match[1].length;
+    const headingText = extractHeadingText(match[2]);
+    const key = `${level}:${headingText.toLowerCase()}`;
+    if (!spacingMap.has(key)) {
+      spacingMap.set(key, []);
+    }
+    spacingMap.get(key).push(blankLines);
+  }
+
+  return spacingMap;
+}
+
+function normalizeMarkdownHeadingSpacing(markdown, spacingMap) {
+  if (!markdown || !spacingMap?.size) {
+    return markdown;
+  }
+
+  const workingMap = new Map();
+  spacingMap.forEach((values, key) => {
+    workingMap.set(key, values.slice());
+  });
+
+  const lines = markdown.split('\n');
+  const result = [];
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index];
+    result.push(line);
+
+    const match = line.match(/^\s{0,3}(#{1,6})\s+(.*)$/u);
+    if (match) {
+      let blankLines = 0;
+      let pointer = index + 1;
+      while (pointer < lines.length && lines[pointer].trim() === '') {
+        blankLines += 1;
+        pointer += 1;
+      }
+
+      const level = match[1].length;
+      const headingText = extractHeadingText(match[2]);
+      const key = `${level}:${headingText.toLowerCase()}`;
+      const stored = workingMap.get(key);
+      const desiredBlankLines = stored && stored.length ? stored.shift() : null;
+      const blanksToKeep =
+        desiredBlankLines === null || desiredBlankLines === undefined
+          ? blankLines
+          : Math.min(blankLines, desiredBlankLines);
+
+      for (let kept = 0; kept < blanksToKeep; kept += 1) {
+        result.push('');
+      }
+
+      index += 1 + blankLines;
+      continue;
+    }
+
+    index += 1;
+  }
+
+  return result.join('\n');
 }
 
 function generateHeadingId(text, level, slugCounts) {
@@ -465,7 +546,13 @@ function enterHtmlMode() {
   }
   const convertersReady = Boolean(window.marked?.parse) && Boolean(turndownService);
   const convertedHtml = convertMarkdownToHtml(markdownContent);
-  htmlContent = convertersReady ? formatHtmlContentForEditor(convertedHtml) : convertedHtml;
+  const formattedHtml = convertersReady
+    ? formatHtmlContentForEditor(convertedHtml)
+    : convertedHtml;
+  htmlContent = formattedHtml;
+  lastNormalizedHtml = convertersReady
+    ? prepareHtmlContentForConversion(formattedHtml)
+    : formattedHtml;
   editorMode = 'html';
   renderHtmlEditor(htmlContent);
   setToolbarDisabled(true);
@@ -493,11 +580,26 @@ function exitHtmlMode() {
   const previousMarkdown = markdownContent;
   const latestHtml = getHtmlEditorContent();
   const preparedHtml = prepareHtmlContentForConversion(latestHtml);
+  const convertersReady = Boolean(window.marked?.parse) && Boolean(turndownService);
   htmlContent = preparedHtml;
-  const convertedMarkdown = convertHtmlToMarkdown(preparedHtml);
-  const hasChanged = convertedMarkdown !== previousMarkdown;
+
+  let nextMarkdown = previousMarkdown;
+  let hasChanged = false;
+
+  if (convertersReady) {
+    if (preparedHtml !== lastNormalizedHtml) {
+      const headingSpacingMap = createHeadingSpacingMap(previousMarkdown);
+      const convertedMarkdown = convertHtmlToMarkdown(preparedHtml);
+      nextMarkdown = normalizeMarkdownHeadingSpacing(convertedMarkdown, headingSpacingMap);
+      hasChanged = nextMarkdown !== previousMarkdown;
+    }
+  } else {
+    nextMarkdown = preparedHtml;
+    hasChanged = nextMarkdown !== previousMarkdown;
+  }
+
   editorMode = 'markdown';
-  applyEditorUpdate(convertedMarkdown, convertedMarkdown.length, convertedMarkdown.length, {
+  applyEditorUpdate(nextMarkdown, nextMarkdown.length, nextMarkdown.length, {
     focus: true,
     markDirty: hasChanged || isDirty,
     persistContent: true
@@ -508,6 +610,7 @@ function exitHtmlMode() {
     editorElements.editor.setAttribute('aria-label', 'Markdown input');
   }
   setStatus('Markdown mode enabled.', 'info');
+  lastNormalizedHtml = preparedHtml;
 }
 
 function toggleEditorMode() {
