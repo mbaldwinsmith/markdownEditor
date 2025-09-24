@@ -1,10 +1,15 @@
-const CACHE_NAME = 'markdown-editor-cache-v2';
+const CACHE_NAME = 'markdown-editor-cache-v3';
 const OFFLINE_ASSETS = [
   './',
   './index.html',
   './styles.css',
   './app.js',
   './manifest.json',
+  './privacy.html',
+  './terms.html',
+  './vendor/marked.min.js',
+  './vendor/turndown.min.js',
+  './vendor/turndown-plugin-gfm.min.js',
   './icons/icon-192.svg',
   './icons/icon-512.svg'
 ];
