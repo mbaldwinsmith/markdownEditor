@@ -434,6 +434,19 @@ main {
   scroll-margin-top: var(--header-offset);
 }
 
+.editor-line.is-empty {
+  min-height: 1rem;
+}
+
+.editor-line-break {
+  display: block;
+  height: 0.35rem;
+  line-height: 0;
+  font-size: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
 .editor-line.heading-1 {
   font-size: 1.75rem;
   font-weight: 700;
