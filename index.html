@@ -24,11 +24,23 @@
   <body>
     <header>
       <div class="inner">
-        <div class="app-brand">
-          <span class="brand-mark" aria-hidden="true">
-            <img src="icons/icon-1024.png" width="44" height="44" alt="" />
-          </span>
-          <h1>Mark's Markdown Editor</h1>
+        <div class="brand-row">
+          <div class="app-brand">
+            <span class="brand-mark" aria-hidden="true">
+              <img src="icons/icon-1024.png" width="44" height="44" alt="" />
+            </span>
+            <h1>Mark's Markdown Editor</h1>
+          </div>
+          <button
+            type="button"
+            class="theme-toggle"
+            id="theme-toggle"
+            aria-pressed="false"
+            aria-label="Switch to light mode"
+            title="Switch to light mode"
+          >
+            <i class="fa-solid fa-moon theme-toggle-icon" aria-hidden="true"></i>
+          </button>
         </div>
         <div class="toolbar-row">
           <div class="toolbar toolbar-surface formatting" role="toolbar" aria-label="Markdown formatting">

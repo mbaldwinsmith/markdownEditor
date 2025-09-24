@@ -32,7 +32,9 @@ const editorElements = {
   driveSaveAsButton: document.getElementById('drive-save-as'),
   driveSignInButton: document.getElementById('drive-sign-in'),
   driveSignOutButton: document.getElementById('drive-sign-out'),
-  driveConfigStatus: document.getElementById('drive-config-status')
+  driveConfigStatus: document.getElementById('drive-config-status'),
+  themeToggle: document.getElementById('theme-toggle'),
+  themeToggleIcon: document.querySelector('#theme-toggle .theme-toggle-icon')
 };
 
 let currentFileId = null;
@@ -56,6 +58,12 @@ const CONTENT_STORAGE_KEY = 'markdown-editor-content';
 const BASE_DOCUMENT_TITLE = "Mark's Markdown Editor";
 const INDENTATION_STRING = '  ';
 const PERSISTENCE_DEBOUNCE_MS = 300;
+const THEME_STORAGE_KEY = 'markdown-editor-theme';
+const THEME_COLOR_MAP = {
+  dark: '#1f2937',
+  light: '#f8fafc'
+};
+const COLOR_SCHEME_QUERY = '(prefers-color-scheme: light)';
 
 let pendingContentPersistence = null;
 let persistenceTimeoutId = null;
@@ -119,6 +127,80 @@ Start typing in the editor to craft your Markdown documents. Use the toolbar but
 
 > Tip: Provide Google Drive credentials via your secure runtime configuration (or the \`google-oauth-client-id\` meta tag for local development) to enable Google Drive sync.
 `;
+
+function getStoredThemePreference() {
+  const stored = localStorage.getItem(THEME_STORAGE_KEY);
+  return stored === 'light' || stored === 'dark' ? stored : null;
+}
+
+function updateThemeColorMeta(theme) {
+  const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+  if (!themeColorMeta) {
+    return;
+  }
+  const color = THEME_COLOR_MAP[theme] ?? THEME_COLOR_MAP.dark;
+  themeColorMeta.setAttribute('content', color);
+}
+
+function updateThemeToggle(theme) {
+  if (!editorElements.themeToggle) {
+    return;
+  }
+  const nextLabel = theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode';
+  editorElements.themeToggle.setAttribute('aria-pressed', theme === 'light' ? 'true' : 'false');
+  editorElements.themeToggle.setAttribute('title', nextLabel);
+  editorElements.themeToggle.setAttribute('aria-label', nextLabel);
+  editorElements.themeToggle.dataset.theme = theme;
+
+  if (editorElements.themeToggleIcon) {
+    editorElements.themeToggleIcon.classList.remove('fa-sun', 'fa-moon');
+    editorElements.themeToggleIcon.classList.add(theme === 'light' ? 'fa-sun' : 'fa-moon');
+  }
+}
+
+function applyThemePreference(theme, { persist = true } = {}) {
+  if (theme !== 'light' && theme !== 'dark') {
+    return;
+  }
+  document.documentElement.dataset.theme = theme;
+  updateThemeColorMeta(theme);
+  updateThemeToggle(theme);
+  if (persist) {
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  } else {
+    localStorage.removeItem(THEME_STORAGE_KEY);
+  }
+}
+
+function initializeThemePreference() {
+  const storedTheme = getStoredThemePreference();
+  const prefersLight =
+    typeof window !== 'undefined' && window.matchMedia && window.matchMedia(COLOR_SCHEME_QUERY).matches;
+  const initialTheme = storedTheme ?? (prefersLight ? 'light' : 'dark');
+  applyThemePreference(initialTheme, { persist: Boolean(storedTheme) });
+
+  if (editorElements.themeToggle) {
+    editorElements.themeToggle.addEventListener('click', () => {
+      const currentTheme = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+      const nextTheme = currentTheme === 'light' ? 'dark' : 'light';
+      applyThemePreference(nextTheme);
+    });
+  }
+
+  if (!storedTheme && typeof window !== 'undefined' && window.matchMedia) {
+    const mediaQuery = window.matchMedia(COLOR_SCHEME_QUERY);
+    const handleChange = (event) => {
+      if (!getStoredThemePreference()) {
+        applyThemePreference(event.matches ? 'light' : 'dark', { persist: false });
+      }
+    };
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handleChange);
+    } else if (typeof mediaQuery.addListener === 'function') {
+      mediaQuery.addListener(handleChange);
+    }
+  }
+}
 
 function canUndo() {
   return historyIndex > 0;
@@ -2540,6 +2622,8 @@ document.addEventListener('keydown', (event) => {
       break;
   }
 });
+
+initializeThemePreference();
 
 init().catch((error) => {
   console.error('Failed to initialise the Markdown editor.', error);
