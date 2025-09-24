@@ -150,9 +150,17 @@ h1 {
   padding: 0;
 }
 
-.toolbar .icon-button svg {
+.toolbar .icon-button > :is(svg, i) {
   width: 1.35rem;
   height: 1.35rem;
+}
+
+.toolbar .icon-button > i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  line-height: 1;
 }
 
 .toolbar .mode-toggle {
@@ -162,9 +170,17 @@ h1 {
   padding: 0.5rem 0.85rem;
 }
 
-.toolbar .mode-toggle svg {
+.toolbar .mode-toggle > :is(svg, i) {
   width: 1.2rem;
   height: 1.2rem;
+}
+
+.toolbar .mode-toggle > i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  line-height: 1;
 }
 
 .toolbar .mode-toggle .button-label {
