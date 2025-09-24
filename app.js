@@ -476,6 +476,7 @@ function renderFormattedMarkdown(content) {
     }
 
     if (!line) {
+      lineElement.classList.add('is-empty');
       lineElement.innerHTML = '&#8203;';
     } else {
       lineElement.textContent = '';
@@ -485,7 +486,11 @@ function renderFormattedMarkdown(content) {
     fragment.appendChild(lineElement);
 
     if (index < lines.length - 1) {
-      fragment.appendChild(document.createTextNode('\n'));
+      const lineBreak = document.createElement('span');
+      lineBreak.classList.add('editor-line-break');
+      lineBreak.setAttribute('aria-hidden', 'true');
+      lineBreak.textContent = '\n';
+      fragment.appendChild(lineBreak);
     }
   });
 
