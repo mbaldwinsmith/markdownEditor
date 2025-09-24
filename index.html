@@ -12,6 +12,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+      integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -26,206 +33,37 @@
         <div class="toolbar-row">
           <div class="toolbar toolbar-surface formatting" role="toolbar" aria-label="Markdown formatting">
             <button type="button" class="icon-button" data-action="bold" aria-label="Bold">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M8.5 4.5H13c3 0 5.3 1.9 5.3 4.6 0 1.9-1.1 3.4-2.8 4 1.9.6 3.2 2.1 3.2 4.2 0 2.9-2.3 4.9-5.5 4.9H8.5Zm1.7 1.7h2.6a2.3 2.3 0 010 4.6h-2.6Zm0 6.1h3a2.45 2.45 0 010 4.9h-3Z"
-                  fill="currentColor"
-                  fill-rule="evenodd"
-                />
-              </svg>
+              <i class="fa-solid fa-bold" aria-hidden="true"></i>
             </button>
             <button type="button" class="icon-button" data-action="italic" aria-label="Italic">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M11 5.5h8M7 18.5h8M15 5.5l-4 13"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <i class="fa-solid fa-italic" aria-hidden="true"></i>
             </button>
             <button type="button" class="icon-button heading-button" data-action="heading-1" aria-label="Heading level 1">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M6.5 6.5v11m6-11v11m-6-5.5h6"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.7"
-                  stroke-linecap="round"
-                />
-                <g transform="translate(14 6)">
-                  <path
-                    d="M5.6 1.2 7.4 0v12"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                  <path
-                    d="M1.4 12h6"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                  />
-                </g>
-              </svg>
+              <i class="fa-solid fa-h1" aria-hidden="true"></i>
             </button>
             <button type="button" class="icon-button heading-button" data-action="heading-2" aria-label="Heading level 2">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M6.5 6.5v11m6-11v11m-6-5.5h6"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.7"
-                  stroke-linecap="round"
-                />
-                <g transform="translate(14 6)">
-                  <path
-                    d="M1.4 3.3L3.4 1.1Q4.6 0 6.7 0Q9.7 0 9.7 2.5Q9.7 4 8.2 5.1L2.7 9.8H9.4"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                  <path
-                    d="M2 12H8.9"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                  />
-                </g>
-              </svg>
+              <i class="fa-solid fa-h2" aria-hidden="true"></i>
             </button>
             <button type="button" class="icon-button heading-button" data-action="heading-3" aria-label="Heading level 3">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M6.5 6.5v11m6-11v11m-6-5.5h6"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.7"
-                  stroke-linecap="round"
-                />
-                <g transform="translate(14 6)">
-                  <path
-                    d="M1.5 2.5Q2.4 0.6 5.5 0Q8.6 0.6 8.6 2.5Q8.6 3.9 7.1 4.6Q8.8 5.3 8.8 7Q8.8 9.4 6.6 10.7Q4.8 11.8 2.8 11.2Q1.6 10.8 1 9.9"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </g>
-              </svg>
+              <i class="fa-solid fa-h3" aria-hidden="true"></i>
             </button>
             <button type="button" class="icon-button" data-action="link" aria-label="Insert link">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M9.5 14.5l-1.9 1.9a3 3 0 104.3 4.2l3.2-3.2a3 3 0 000-4.3l-.4-.4"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-                <path
-                  d="M14.5 9.5l1.9-1.9a3 3 0 00-4.3-4.3l-3.2 3.2a3 3 0 000 4.3l.4.4"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <i class="fa-solid fa-link" aria-hidden="true"></i>
             </button>
             <button type="button" class="icon-button" data-action="image" aria-label="Insert image">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <rect
-                  x="4"
-                  y="5"
-                  width="16"
-                  height="14"
-                  rx="2"
-                  ry="2"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                />
-                <circle cx="9" cy="10" r="1.6" fill="currentColor" />
-                <path
-                  d="M7 17l3.5-3.5 2.5 2.5 3.5-3.5 3 3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <i class="fa-solid fa-image" aria-hidden="true"></i>
             </button>
             <button type="button" class="icon-button" data-action="ordered-list" aria-label="Ordered list">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M10 7h9m-9 5h9m-9 5h9"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                />
-                <path
-                  d="M5.5 6.5l-1.5.8M4 6.5v4.5m0 3h2.2L4 17.5h2.2"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <i class="fa-solid fa-list-ol" aria-hidden="true"></i>
             </button>
             <button type="button" class="icon-button" data-action="unordered-list" aria-label="Unordered list">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M10 7h9m-9 5h9m-9 5h9"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                />
-                <circle cx="6" cy="7" r="1.3" fill="currentColor" />
-                <circle cx="6" cy="12" r="1.3" fill="currentColor" />
-                <circle cx="6" cy="17" r="1.3" fill="currentColor" />
-              </svg>
+              <i class="fa-solid fa-list-ul" aria-hidden="true"></i>
             </button>
             <button type="button" class="icon-button" data-action="table" aria-label="Insert table">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <rect
-                  x="4"
-                  y="5"
-                  width="16"
-                  height="14"
-                  rx="2"
-                  ry="2"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                />
-                <path
-                  d="M4 11h16M10 5v14M14 5v14"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                />
-              </svg>
+              <i class="fa-solid fa-table" aria-hidden="true"></i>
             </button>
             <button type="button" class="icon-button" data-action="horizontal-rule" aria-label="Insert horizontal rule">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-              </svg>
+              <i class="fa-solid fa-minus" aria-hidden="true"></i>
             </button>
             <button
               type="button"
@@ -235,17 +73,7 @@
               aria-label="Switch to HTML mode"
               title="Switch to HTML mode"
             >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M8 7l-4 5 4 5M16 7l4 5-4 5"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-                <path d="M12 5v14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
-              </svg>
+              <i class="fa-solid fa-code" aria-hidden="true"></i>
               <span class="button-label">HTML</span>
             </button>
           </div>
