@@ -53,6 +53,7 @@ let accessToken = null;
 let headerResizeObserver = null;
 
 const CONTENT_STORAGE_KEY = 'markdown-editor-content';
+const BASE_DOCUMENT_TITLE = "Mark's Markdown Editor";
 const INDENTATION_STRING = '  ';
 const PERSISTENCE_DEBOUNCE_MS = 300;
 
@@ -1466,8 +1467,20 @@ function setStatus(message, type = 'info') {
 
 function updateFileIndicator() {
   const displayName = getDisplayedFileName();
-  const indicator = `${displayName}${isDirty || hasTitleChanges() ? ' • Unsaved changes' : ''}`;
+  const hasUnsavedChanges = isDirty || hasTitleChanges();
+  const indicator = `${displayName}${hasUnsavedChanges ? ' • Unsaved changes' : ''}`;
   editorElements.fileIndicator.textContent = indicator;
+  updateDocumentTitle(displayName, hasUnsavedChanges);
+}
+
+function updateDocumentTitle(displayName, hasUnsavedChanges) {
+  const safeName = displayName || 'Untitled.md';
+  const titleParts = [safeName, BASE_DOCUMENT_TITLE];
+  let title = titleParts.join(' – ');
+  if (hasUnsavedChanges) {
+    title += ' • Unsaved changes';
+  }
+  document.title = title;
 }
 
 function attachEventListeners() {
@@ -1599,6 +1612,12 @@ function applyMarkdown(action) {
     case 'italic':
       wrapSelection('*', '*', 'italic text');
       break;
+    case 'strikethrough':
+      wrapSelection('~~', '~~', 'strikethrough text');
+      break;
+    case 'inline-code':
+      wrapSelection('`', '`', 'code');
+      break;
     case 'heading-1':
       applyLinePrefix('# ', 'Heading 1');
       break;
@@ -1607,6 +1626,9 @@ function applyMarkdown(action) {
       break;
     case 'heading-3':
       applyLinePrefix('### ', 'Heading 3');
+      break;
+    case 'blockquote':
+      applyBlockQuote();
       break;
     case 'link':
       insertLink();
@@ -1625,6 +1647,9 @@ function applyMarkdown(action) {
       break;
     case 'table':
       insertSnippet('\n\n| Column 1 | Column 2 |\n| --- | --- |\n| Item 1 | Item 2 |\n\n');
+      break;
+    case 'code-block':
+      insertCodeBlock();
       break;
     default:
       break;
@@ -1647,6 +1672,20 @@ function insertSnippet(snippet) {
   const newValue = `${value.slice(0, start)}${snippet}${value.slice(end)}`;
   const cursorPosition = start + snippet.length;
   applyEditorUpdate(newValue, cursorPosition, cursorPosition);
+}
+
+function insertCodeBlock() {
+  const { start, end } = getSelectionOffsets();
+  const value = markdownContent;
+  const selected = value.slice(start, end);
+  const placeholder = 'code';
+  const blockStart = '\n\n```\n';
+  const blockEnd = '\n```\n\n';
+  const content = selected || placeholder;
+  const newValue = `${value.slice(0, start)}${blockStart}${content}${blockEnd}${value.slice(end)}`;
+  const selectionStart = start + blockStart.length;
+  const selectionEnd = selectionStart + content.length;
+  applyEditorUpdate(newValue, selectionStart, selectionEnd);
 }
 
 function applyLinePrefix(prefix, placeholder = '') {
@@ -1710,6 +1749,41 @@ function applyList(ordered) {
   const updated = updatedLines.join('\n');
   const newValue = `${value.slice(0, lineStart)}${updated}${value.slice(lineEnd)}`;
   applyEditorUpdate(newValue, lineStart, lineStart + updated.length);
+}
+
+function applyBlockQuote() {
+  const value = markdownContent;
+  const { start, end } = getSelectionOffsets();
+  const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+  let lineEnd = value.indexOf('\n', end);
+  if (lineEnd === -1) {
+    lineEnd = value.length;
+  }
+  const selected = value.slice(lineStart, lineEnd);
+  const lines = selected.split('\n');
+  const hasContent = lines.some((line) => line.trim());
+  let placeholderInserted = false;
+  const updatedLines = lines.map((line) => {
+    const leadingWhitespaceMatch = line.match(/^\s*/u);
+    const leadingWhitespace = leadingWhitespaceMatch ? leadingWhitespaceMatch[0] : '';
+    const trimmedStart = line.trimStart();
+    if (!trimmedStart) {
+      if (!hasContent && !placeholderInserted) {
+        placeholderInserted = true;
+        return `${leadingWhitespace}> Quote text`;
+      }
+      return `${leadingWhitespace}> `;
+    }
+    if (trimmedStart.startsWith('>')) {
+      return `${leadingWhitespace}${trimmedStart}`;
+    }
+    return `${leadingWhitespace}> ${trimmedStart}`;
+  });
+  const updated = updatedLines.join('\n');
+  const newValue = `${value.slice(0, lineStart)}${updated}${value.slice(lineEnd)}`;
+  const selectionStart = lineStart;
+  const selectionEnd = selectionStart + updated.length;
+  applyEditorUpdate(newValue, selectionStart, selectionEnd);
 }
 
 function insertLink() {
