@@ -113,7 +113,13 @@ h1 {
 }
 
 .toolbar-row > .toolbar-surface {
-  flex: 1 1 100%;
+  flex: 0 0 100%;
+  width: 100%;
+}
+
+.toolbar.formatting,
+.toolbar.drive-actions {
+  justify-content: center;
 }
 
 .toolbar.drive-actions {
