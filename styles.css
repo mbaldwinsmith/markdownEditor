@@ -798,6 +798,252 @@ main {
   align-items: center;
 }
 
+/* Footer */
+
+.site-footer {
+  margin-top: auto;
+  background: var(--surface-strong);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -8px 24px var(--shadow);
+}
+
+.site-footer .inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+  text-align: center;
+}
+
+.site-footer p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.footer-nav {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.footer-nav a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.footer-nav a:hover,
+.footer-nav a:focus-visible {
+  text-decoration: underline;
+}
+
+@media (min-width: 768px) {
+  .site-footer .inner {
+    flex-direction: row;
+    justify-content: space-between;
+    text-align: left;
+  }
+}
+
+/* Legal pages */
+
+body.legal-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+header.legal-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(12px);
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 4px 12px var(--shadow);
+}
+
+header.legal-header .inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.1rem 1.75rem;
+}
+
+.legal-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.legal-header-bar .brand-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 1.2rem;
+  letter-spacing: 0.02em;
+}
+
+.legal-header-bar .brand-link:hover,
+.legal-header-bar .brand-link:focus-visible {
+  color: var(--accent);
+}
+
+.legal-header-bar .brand-link .brand-name {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.legal-header-bar .brand-link .brand-name span {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.legal-header-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.legal-header-links a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 0.25rem 0;
+}
+
+.legal-header-links a:hover,
+.legal-header-links a:focus-visible {
+  text-decoration: underline;
+}
+
+.legal-header-links a[aria-current='page'] {
+  color: #ffffff;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
+
+.legal-main {
+  flex: 1;
+  width: 100%;
+  padding: 2.5rem 1.25rem 4rem;
+  display: flex;
+  justify-content: center;
+}
+
+.legal-content {
+  width: min(100%, 900px);
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  padding: 2.5rem;
+  box-shadow: 0 22px 48px var(--surface-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.legal-content h1 {
+  margin: 0;
+  font-size: 2.15rem;
+  letter-spacing: 0.02em;
+}
+
+.legal-content h2 {
+  margin: 2rem 0 0.75rem;
+  font-size: 1.4rem;
+}
+
+.legal-content p {
+  margin: 0;
+  color: var(--text-subtle);
+  line-height: 1.7;
+}
+
+.legal-content section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.legal-content ul,
+.legal-content ol {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.5rem;
+  color: var(--text-subtle);
+}
+
+.legal-content li {
+  margin: 0;
+}
+
+.legal-content strong {
+  color: #ffffff;
+}
+
+.legal-meta {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.legal-callout {
+  border-left: 3px solid var(--accent);
+  padding-left: 1rem;
+  color: var(--text-subtle);
+}
+
+.legal-contact {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.legal-contact a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.legal-contact a:hover,
+.legal-contact a:focus-visible {
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  header.legal-header .inner {
+    padding: 1rem 1.25rem;
+  }
+
+  .legal-content {
+    padding: 1.75rem;
+  }
+
+  .legal-content h1 {
+    font-size: 1.85rem;
+  }
+
+  .legal-content h2 {
+    font-size: 1.25rem;
+  }
+}
+
 .drive-save-controls input {
   flex: 1;
 }
