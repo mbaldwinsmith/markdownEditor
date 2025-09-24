@@ -536,7 +536,16 @@ function updateModeToggleState() {
     return;
   }
   const isHtmlMode = editorMode === 'html';
-  editorElements.modeToggle.textContent = isHtmlMode ? 'Switch to Markdown' : 'Switch to HTML';
+  const buttonLabel = editorElements.modeToggle.querySelector('.button-label');
+  const nextModeText = isHtmlMode ? 'Markdown' : 'HTML';
+  const toggleDescription = isHtmlMode ? 'Switch to Markdown mode' : 'Switch to HTML mode';
+  if (buttonLabel) {
+    buttonLabel.textContent = nextModeText;
+  } else {
+    editorElements.modeToggle.textContent = `Switch to ${nextModeText}`;
+  }
+  editorElements.modeToggle.setAttribute('aria-label', toggleDescription);
+  editorElements.modeToggle.setAttribute('title', toggleDescription);
   editorElements.modeToggle.setAttribute('aria-pressed', isHtmlMode ? 'true' : 'false');
 }
 
