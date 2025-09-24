@@ -1,5 +1,5 @@
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
   --bg-gradient-start: #0f172a;
   --bg-gradient-end: #1e293b;
   --surface: rgba(15, 23, 42, 0.75);
@@ -35,6 +35,46 @@
   --legal-intro-bg: rgba(15, 23, 42, 0.6);
   --font-sans: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg-gradient-start: #f8fafc;
+  --bg-gradient-end: #e2e8f0;
+  --surface: rgba(255, 255, 255, 0.9);
+  --surface-strong: rgba(255, 255, 255, 0.98);
+  --header-bg: rgba(248, 250, 252, 0.85);
+  --input-bg: rgba(255, 255, 255, 0.95);
+  --text: #0f172a;
+  --text-muted: rgba(15, 23, 42, 0.6);
+  --text-subtle: rgba(15, 23, 42, 0.7);
+  --accent: #0ea5e9;
+  --accent-dark: #0284c7;
+  --border: rgba(15, 23, 42, 0.12);
+  --button-bg: rgba(148, 163, 184, 0.18);
+  --button-bg-hover: rgba(148, 163, 184, 0.28);
+  --button-border-hover: rgba(148, 163, 184, 0.35);
+  --overlay: rgba(15, 23, 42, 0.35);
+  --shadow: rgba(15, 23, 42, 0.12);
+  --surface-shadow: rgba(15, 23, 42, 0.18);
+  --strong-shadow: rgba(15, 23, 42, 0.22);
+  --editor-bg: linear-gradient(170deg, rgba(255, 255, 255, 0.98), rgba(226, 232, 240, 0.92));
+  --editor-border: rgba(15, 23, 42, 0.12);
+  --editor-shadow: 0 18px 44px rgba(15, 23, 42, 0.12);
+  --table-border: rgba(15, 23, 42, 0.12);
+  --row-hover: rgba(14, 165, 233, 0.12);
+  --row-selected: rgba(14, 165, 233, 0.18);
+  --breadcrumb-text: rgba(15, 23, 42, 0.65);
+  --breadcrumb-separator: rgba(148, 163, 184, 0.4);
+  --breadcrumb-disabled: rgba(148, 163, 184, 0.55);
+  --danger-bg: rgba(248, 113, 113, 0.12);
+  --danger-border: rgba(248, 113, 113, 0.3);
+  --danger-text: #b91c1c;
+  --legal-intro-bg: rgba(148, 163, 184, 0.18);
 }
 
 * {
@@ -75,6 +115,59 @@ header .inner {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+
+.app-brand h1 {
+  flex: 1;
+}
+
+.theme-toggle {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.65rem;
+  border: 1px solid transparent;
+  background: var(--button-bg);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.theme-toggle .theme-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 0.55rem;
+  background: rgba(148, 163, 184, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  font-size: 0.95rem;
+  color: inherit;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.theme-toggle:hover {
+  background: var(--button-bg-hover);
+  border-color: var(--button-border-hover);
+  transform: translateY(-1px);
+}
+
+.theme-toggle:hover .theme-icon {
+  background: rgba(148, 163, 184, 0.28);
+}
+
+.theme-toggle:active {
+  transform: translateY(0);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .brand-mark {
@@ -1131,39 +1224,41 @@ header.legal-header .inner {
 }
 
 @media (prefers-color-scheme: light) {
-  :root {
+  :root:not([data-theme]) {
+    color-scheme: light;
     --bg-gradient-start: #f8fafc;
     --bg-gradient-end: #e2e8f0;
-    --surface: #ffffff;
-    --surface-strong: #ffffff;
+    --surface: rgba(255, 255, 255, 0.9);
+    --surface-strong: rgba(255, 255, 255, 0.98);
     --header-bg: rgba(248, 250, 252, 0.85);
     --input-bg: rgba(255, 255, 255, 0.95);
     --text: #0f172a;
     --text-muted: rgba(15, 23, 42, 0.6);
     --text-subtle: rgba(15, 23, 42, 0.7);
+    --accent: #0ea5e9;
+    --accent-dark: #0284c7;
     --border: rgba(15, 23, 42, 0.12);
-    --button-bg: #f8fafc;
-    --button-bg-hover: #e2e8f0;
+    --button-bg: rgba(148, 163, 184, 0.18);
+    --button-bg-hover: rgba(148, 163, 184, 0.28);
     --button-border-hover: rgba(148, 163, 184, 0.35);
-    --overlay: rgba(15, 23, 42, 0.3);
-    --shadow: rgba(15, 23, 42, 0.08);
-    --surface-shadow: rgba(15, 23, 42, 0.1);
-    --strong-shadow: rgba(15, 23, 42, 0.12);
-    --editor-bg: #ffffff;
+    --overlay: rgba(15, 23, 42, 0.35);
+    --shadow: rgba(15, 23, 42, 0.12);
+    --surface-shadow: rgba(15, 23, 42, 0.18);
+    --strong-shadow: rgba(15, 23, 42, 0.22);
+    --editor-bg: linear-gradient(170deg, rgba(255, 255, 255, 0.98), rgba(226, 232, 240, 0.92));
     --editor-border: rgba(15, 23, 42, 0.12);
-    --editor-shadow: 0 18px 44px rgba(15, 23, 42, 0.1);
-    --table-border: rgba(15, 23, 42, 0.08);
-    --row-hover: rgba(56, 189, 248, 0.12);
-    --row-selected: rgba(56, 189, 248, 0.18);
+    --editor-shadow: 0 18px 44px rgba(15, 23, 42, 0.12);
+    --table-border: rgba(15, 23, 42, 0.12);
+    --row-hover: rgba(14, 165, 233, 0.12);
+    --row-selected: rgba(14, 165, 233, 0.18);
     --breadcrumb-text: rgba(15, 23, 42, 0.65);
-    --breadcrumb-separator: rgba(15, 23, 42, 0.35);
-    --breadcrumb-disabled: rgba(15, 23, 42, 0.4);
-    --danger-bg: rgba(248, 113, 113, 0.15);
+    --breadcrumb-separator: rgba(148, 163, 184, 0.4);
+    --breadcrumb-disabled: rgba(148, 163, 184, 0.55);
+    --danger-bg: rgba(248, 113, 113, 0.12);
     --danger-border: rgba(248, 113, 113, 0.3);
     --danger-text: #b91c1c;
-    --legal-intro-bg: rgba(15, 23, 42, 0.05);
+    --legal-intro-bg: rgba(148, 163, 184, 0.18);
   }
-
 }
 
 @media (max-width: 768px) {
@@ -1174,6 +1269,11 @@ header.legal-header .inner {
 
   h1 {
     text-align: center;
+  }
+
+  .theme-toggle {
+    align-self: center;
+    margin-left: 0;
   }
 
   .toolbar {
