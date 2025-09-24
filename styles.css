@@ -100,7 +100,7 @@ h1 {
 
 .toolbar-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 0.9rem;
   align-items: stretch;
 }
@@ -262,20 +262,6 @@ h1 {
 
 .button-label {
   font-size: 0.85rem;
-}
-
-@media (min-width: 900px) {
-  .toolbar-row {
-    flex-wrap: nowrap;
-  }
-
-  .toolbar-row > .toolbar-surface {
-    flex: 1 1 auto;
-  }
-
-  .toolbar.drive-actions {
-    justify-content: flex-end;
-  }
 }
 
 .toolbar button:hover,
