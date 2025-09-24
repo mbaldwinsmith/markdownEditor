@@ -98,11 +98,36 @@
             </button>
           </div>
           <div class="toolbar toolbar-surface drive-actions" role="group" aria-label="Google Drive actions">
-            <button type="button" class="secondary-button" id="drive-sign-in">Sign in</button>
-            <button type="button" class="secondary-button" id="drive-sign-out" hidden>Sign out</button>
-            <button type="button" class="secondary-button" id="drive-open" disabled>Open</button>
-            <button type="button" class="primary" id="drive-save" disabled>Save</button>
-            <button type="button" class="secondary-button" id="drive-save-as" disabled>Save as</button>
+            <button type="button" class="secondary-button drive-button" id="drive-sign-in">
+              <span class="drive-icon" aria-hidden="true">
+                <i class="fa-brands fa-google-drive"></i>
+              </span>
+              <span class="button-label">Sign in</span>
+            </button>
+            <button type="button" class="secondary-button drive-button" id="drive-sign-out" hidden>
+              <span class="drive-icon" aria-hidden="true">
+                <i class="fa-brands fa-google-drive"></i>
+              </span>
+              <span class="button-label">Sign out</span>
+            </button>
+            <button type="button" class="secondary-button drive-button" id="drive-open" disabled>
+              <span class="drive-icon" aria-hidden="true">
+                <i class="fa-solid fa-folder-open"></i>
+              </span>
+              <span class="button-label">Open</span>
+            </button>
+            <button type="button" class="primary drive-button" id="drive-save" disabled>
+              <span class="drive-icon" aria-hidden="true">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+              </span>
+              <span class="button-label">Save</span>
+            </button>
+            <button type="button" class="secondary-button drive-button" id="drive-save-as" disabled>
+              <span class="drive-icon" aria-hidden="true">
+                <i class="fa-solid fa-file-export"></i>
+              </span>
+              <span class="button-label">Save as</span>
+            </button>
           </div>
         </div>
       </div>
