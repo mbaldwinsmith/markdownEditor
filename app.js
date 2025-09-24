@@ -11,6 +11,8 @@ const editorElements = {
   tocList: document.getElementById('toc-list'),
   tocEmptyState: document.getElementById('toc-empty'),
   toolbarButtons: document.querySelectorAll('[data-action]'),
+  undoButton: document.querySelector('[data-action="undo"]'),
+  redoButton: document.querySelector('[data-action="redo"]'),
   modeToggle: document.getElementById('editor-mode-toggle'),
   dialog: document.getElementById('drive-dialog'),
   dialogClose: document.getElementById('drive-dialog-close'),
@@ -49,6 +51,11 @@ let tokenClient = null;
 let gisReady = false;
 let accessToken = null;
 let headerResizeObserver = null;
+
+const HISTORY_LIMIT = 200;
+const editorHistory = [];
+let historyIndex = -1;
+let isNavigatingHistory = false;
 
 const HTML_VOID_ELEMENTS = new Set([
   'area',
@@ -100,6 +107,128 @@ Start typing in the editor to craft your Markdown documents. Use the toolbar but
 
 > Tip: Provide Google Drive credentials via your secure runtime configuration (or the \`google-oauth-client-id\` meta tag for local development) to enable Google Drive sync.
 `;
+
+function canUndo() {
+  return historyIndex > 0;
+}
+
+function canRedo() {
+  return historyIndex >= 0 && historyIndex < editorHistory.length - 1;
+}
+
+function updateUndoRedoButtons() {
+  if (editorElements.undoButton) {
+    const disabled = !canUndo();
+    editorElements.undoButton.disabled = disabled;
+    editorElements.undoButton.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+  }
+  if (editorElements.redoButton) {
+    const disabled = !canRedo();
+    editorElements.redoButton.disabled = disabled;
+    editorElements.redoButton.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+  }
+}
+
+function saveHistoryEntry(entry, { reset = false } = {}) {
+  if (isNavigatingHistory) {
+    return;
+  }
+
+  if (reset) {
+    editorHistory.length = 0;
+    editorHistory.push(entry);
+    historyIndex = editorHistory.length ? editorHistory.length - 1 : -1;
+    updateUndoRedoButtons();
+    return;
+  }
+
+  const lastEntry = historyIndex >= 0 ? editorHistory[historyIndex] : null;
+
+  if (lastEntry && lastEntry.content === entry.content) {
+    if (
+      lastEntry.selectionStart !== entry.selectionStart ||
+      lastEntry.selectionEnd !== entry.selectionEnd
+    ) {
+      editorHistory[historyIndex] = { ...entry };
+    }
+    updateUndoRedoButtons();
+    return;
+  }
+
+  if (historyIndex < editorHistory.length - 1) {
+    editorHistory.splice(historyIndex + 1);
+  }
+
+  editorHistory.push(entry);
+
+  if (editorHistory.length > HISTORY_LIMIT) {
+    editorHistory.shift();
+  }
+
+  historyIndex = editorHistory.length ? editorHistory.length - 1 : -1;
+
+  updateUndoRedoButtons();
+}
+
+function undo() {
+  if (editorMode !== 'markdown') {
+    return;
+  }
+
+  if (!canUndo()) {
+    return;
+  }
+
+  historyIndex -= 1;
+  const entry = editorHistory[historyIndex];
+  if (!entry) {
+    historyIndex += 1;
+    return;
+  }
+
+  isNavigatingHistory = true;
+  try {
+    applyEditorUpdate(entry.content, entry.selectionStart, entry.selectionEnd, {
+      focus: true,
+      markDirty: true,
+      persistContent: true,
+      recordHistory: false
+    });
+  } finally {
+    isNavigatingHistory = false;
+    updateUndoRedoButtons();
+  }
+}
+
+function redo() {
+  if (editorMode !== 'markdown') {
+    return;
+  }
+
+  if (!canRedo()) {
+    return;
+  }
+
+  historyIndex += 1;
+  const entry = editorHistory[historyIndex];
+  if (!entry) {
+    historyIndex -= 1;
+    return;
+  }
+
+  isNavigatingHistory = true;
+  try {
+    applyEditorUpdate(entry.content, entry.selectionStart, entry.selectionEnd, {
+      focus: true,
+      markDirty: true,
+      persistContent: true,
+      recordHistory: false
+    });
+  } finally {
+    isNavigatingHistory = false;
+    updateUndoRedoButtons();
+  }
+}
 
 function configureMarkdownConverters() {
   if (window.marked?.setOptions) {
@@ -381,7 +510,8 @@ async function init() {
   applyEditorUpdate(initialContent, initialContent.length, initialContent.length, {
     persistContent: false,
     markDirty: false,
-    focus: false
+    focus: false,
+    resetHistory: true
   });
   restoreLastFile();
   updateDriveButtons(false);
@@ -534,6 +664,9 @@ function setToolbarDisabled(disabled) {
     button.disabled = disabled;
     button.setAttribute('aria-disabled', disabled ? 'true' : 'false');
   });
+  if (!disabled) {
+    updateUndoRedoButtons();
+  }
 }
 
 function updateModeToggleState() {
@@ -911,7 +1044,13 @@ function applyEditorUpdate(content, selectionStart = content.length, selectionEn
     return;
   }
 
-  const { markDirty = true, persistContent = true, focus = true } = options;
+  const {
+    markDirty = true,
+    persistContent = true,
+    focus = true,
+    recordHistory = true,
+    resetHistory = false
+  } = options;
   const previousScrollTop = editor.scrollTop;
   const previousScrollLeft = editor.scrollLeft;
 
@@ -942,6 +1081,14 @@ function applyEditorUpdate(content, selectionStart = content.length, selectionEn
 
   setSelectionRange(selectionStart, selectionEnd);
   lastSelection = { start: selectionStart, end: selectionEnd };
+
+  if (resetHistory) {
+    saveHistoryEntry({ content, selectionStart, selectionEnd }, { reset: true });
+  } else if (recordHistory) {
+    saveHistoryEntry({ content, selectionStart, selectionEnd });
+  } else if (!isNavigatingHistory) {
+    updateUndoRedoButtons();
+  }
 }
 
 function handleEditorInput() {
@@ -1178,6 +1325,12 @@ function applyMarkdown(action) {
   setSelectionRange(lastSelection.start, lastSelection.end);
 
   switch (action) {
+    case 'undo':
+      undo();
+      break;
+    case 'redo':
+      redo();
+      break;
     case 'bold':
       wrapSelection('**', '**', 'bold text');
       break;
@@ -1863,7 +2016,7 @@ async function loadDriveFile(fileId, name) {
     currentFileName = normalizedName;
     pendingFileName = normalizedName;
     updateTitleInput();
-    applyEditorUpdate(content, content.length, content.length, { markDirty: false });
+    applyEditorUpdate(content, content.length, content.length, { markDirty: false, resetHistory: true });
     localStorage.setItem('markdown-editor-current-file', JSON.stringify({ id: fileId, name: normalizedName }));
     setStatus(`Loaded ${normalizedName} from Google Drive.`, 'success');
   } catch (error) {
@@ -1994,7 +2147,11 @@ document.addEventListener('keydown', (event) => {
   if (target instanceof Node && !editor.contains(target)) {
     return;
   }
-  switch (event.key.toLowerCase()) {
+  const key = event.key.toLowerCase();
+  if (['b', 'i', 'y', 'z'].includes(key) && editorMode !== 'markdown') {
+    return;
+  }
+  switch (key) {
     case 'b':
       event.preventDefault();
       applyMarkdown('bold');
@@ -2002,6 +2159,18 @@ document.addEventListener('keydown', (event) => {
     case 'i':
       event.preventDefault();
       applyMarkdown('italic');
+      break;
+    case 'y':
+      event.preventDefault();
+      redo();
+      break;
+    case 'z':
+      event.preventDefault();
+      if (event.shiftKey) {
+        redo();
+      } else {
+        undo();
+      }
       break;
     default:
       break;
