@@ -538,6 +538,10 @@ main {
   font-style: italic;
 }
 
+.editor .md-strike {
+  text-decoration: line-through;
+}
+
 .status-bar {
   display: flex;
   justify-content: space-between;
