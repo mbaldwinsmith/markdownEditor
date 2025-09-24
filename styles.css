@@ -32,6 +32,7 @@
   --danger-bg: rgba(248, 113, 113, 0.18);
   --danger-border: rgba(248, 113, 113, 0.35);
   --danger-text: #fecaca;
+  --legal-intro-bg: rgba(15, 23, 42, 0.6);
 }
 
 * {
@@ -860,8 +861,8 @@ body.legal-page {
 }
 
 header.legal-header {
-  position: sticky;
-  top: 0;
+  position: static;
+  top: auto;
   z-index: 10;
   backdrop-filter: blur(12px);
   background: var(--header-bg);
@@ -1001,7 +1002,7 @@ header.legal-header .inner {
 .legal-content .legal-intro {
   padding: 1.25rem;
   border-radius: 0.9rem;
-  background: rgba(15, 23, 42, 0.6);
+  background: var(--legal-intro-bg);
 }
 
 .legal-meta {
@@ -1142,6 +1143,7 @@ header.legal-header .inner {
     --danger-bg: rgba(248, 113, 113, 0.15);
     --danger-border: rgba(248, 113, 113, 0.3);
     --danger-text: #b91c1c;
+    --legal-intro-bg: rgba(15, 23, 42, 0.05);
   }
 
 }
