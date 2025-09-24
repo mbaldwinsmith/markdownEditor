@@ -194,6 +194,18 @@ function formatHtmlContentForEditor(html) {
   return formatted.join('\n').replace(/\n+$/u, '');
 }
 
+function prepareHtmlContentForConversion(html) {
+  if (!html) {
+    return '';
+  }
+
+  return html
+    .replace(/\r\n/gu, '\n')
+    .replace(/^[\t ]+(?=<)/gmu, '')
+    .replace(/\n[\t ]+(?=<)/gu, '\n')
+    .replace(/\n{3,}/gu, '\n\n');
+}
+
 function slugifyHeadingText(text) {
   return text
     .toLowerCase()
@@ -480,8 +492,9 @@ function enterHtmlMode() {
 function exitHtmlMode() {
   const previousMarkdown = markdownContent;
   const latestHtml = getHtmlEditorContent();
-  htmlContent = latestHtml;
-  const convertedMarkdown = convertHtmlToMarkdown(latestHtml);
+  const preparedHtml = prepareHtmlContentForConversion(latestHtml);
+  htmlContent = preparedHtml;
+  const convertedMarkdown = convertHtmlToMarkdown(preparedHtml);
   const hasChanged = convertedMarkdown !== previousMarkdown;
   editorMode = 'markdown';
   applyEditorUpdate(convertedMarkdown, convertedMarkdown.length, convertedMarkdown.length, {
