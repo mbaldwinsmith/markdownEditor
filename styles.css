@@ -577,9 +577,10 @@ main {
   .toc {
     display: block;
     position: sticky;
-    top: 6.5rem;
-    max-height: calc(100vh - 7rem);
+    top: calc(var(--header-offset) + 1.5rem);
+    max-height: calc(100vh - var(--header-offset) - 2.5rem);
     overflow: auto;
+    align-self: start;
   }
 }
 
