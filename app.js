@@ -52,10 +52,21 @@ let gisReady = false;
 let accessToken = null;
 let headerResizeObserver = null;
 
+const CONTENT_STORAGE_KEY = 'markdown-editor-content';
+const INDENTATION_STRING = '  ';
+const PERSISTENCE_DEBOUNCE_MS = 300;
+
+let pendingContentPersistence = null;
+let persistenceTimeoutId = null;
+let persistenceIdleHandle = null;
+
 const HISTORY_LIMIT = 200;
 const editorHistory = [];
 let historyIndex = -1;
 let isNavigatingHistory = false;
+const HISTORY_MERGE_INTERVAL = 1200;
+let lastHistoryEntryTime = 0;
+let lastHistoryWasMergeable = false;
 
 const HTML_VOID_ELEMENTS = new Set([
   'area',
@@ -129,15 +140,19 @@ function updateUndoRedoButtons() {
   }
 }
 
-function saveHistoryEntry(entry, { reset = false } = {}) {
+function saveHistoryEntry(entry, { reset = false, behavior = 'push' } = {}) {
   if (isNavigatingHistory) {
     return;
   }
+
+  const now = Date.now();
 
   if (reset) {
     editorHistory.length = 0;
     editorHistory.push(entry);
     historyIndex = editorHistory.length ? editorHistory.length - 1 : -1;
+    lastHistoryEntryTime = now;
+    lastHistoryWasMergeable = false;
     updateUndoRedoButtons();
     return;
   }
@@ -151,8 +166,30 @@ function saveHistoryEntry(entry, { reset = false } = {}) {
     ) {
       editorHistory[historyIndex] = { ...entry };
     }
+    lastHistoryEntryTime = now;
+    lastHistoryWasMergeable = behavior === 'merge';
     updateUndoRedoButtons();
     return;
+  }
+
+  if (
+    behavior === 'merge' &&
+    lastEntry &&
+    lastHistoryWasMergeable &&
+    now - lastHistoryEntryTime <= HISTORY_MERGE_INTERVAL
+  ) {
+    const selectionDelta = entry.selectionStart - lastEntry.selectionStart;
+    const contentDelta = entry.content.length - lastEntry.content.length;
+    const caretUnchanged =
+      entry.selectionStart === entry.selectionEnd &&
+      lastEntry.selectionStart === lastEntry.selectionEnd;
+    if (caretUnchanged && selectionDelta === contentDelta) {
+      editorHistory[historyIndex] = { ...entry };
+      lastHistoryEntryTime = now;
+      lastHistoryWasMergeable = true;
+      updateUndoRedoButtons();
+      return;
+    }
   }
 
   if (historyIndex < editorHistory.length - 1) {
@@ -166,6 +203,8 @@ function saveHistoryEntry(entry, { reset = false } = {}) {
   }
 
   historyIndex = editorHistory.length ? editorHistory.length - 1 : -1;
+  lastHistoryEntryTime = now;
+  lastHistoryWasMergeable = behavior === 'merge';
 
   updateUndoRedoButtons();
 }
@@ -505,7 +544,7 @@ function updateTitleInput() {
 
 async function init() {
   configureMarkdownConverters();
-  const savedContent = localStorage.getItem('markdown-editor-content');
+  const savedContent = localStorage.getItem(CONTENT_STORAGE_KEY);
   const initialContent = savedContent ?? defaultMarkdown;
   applyEditorUpdate(initialContent, initialContent.length, initialContent.length, {
     persistContent: false,
@@ -1038,6 +1077,77 @@ function focusEditor() {
   }
 }
 
+function writeContentToLocalStorage(content) {
+  try {
+    localStorage.setItem(CONTENT_STORAGE_KEY, content);
+  } catch (error) {
+    console.warn('Failed to persist editor content:', error);
+  }
+}
+
+function commitPendingPersistence() {
+  if (pendingContentPersistence === null) {
+    return;
+  }
+  writeContentToLocalStorage(pendingContentPersistence);
+  pendingContentPersistence = null;
+}
+
+function persistEditorContent(content, { immediate = false } = {}) {
+  if (immediate) {
+    if (persistenceTimeoutId) {
+      window.clearTimeout(persistenceTimeoutId);
+      persistenceTimeoutId = null;
+    }
+    if (typeof window.cancelIdleCallback === 'function' && persistenceIdleHandle) {
+      window.cancelIdleCallback(persistenceIdleHandle);
+      persistenceIdleHandle = null;
+    }
+    pendingContentPersistence = null;
+    writeContentToLocalStorage(content);
+    return;
+  }
+
+  pendingContentPersistence = content;
+
+  if (persistenceTimeoutId) {
+    window.clearTimeout(persistenceTimeoutId);
+  }
+
+  if (typeof window.cancelIdleCallback === 'function' && persistenceIdleHandle) {
+    window.cancelIdleCallback(persistenceIdleHandle);
+    persistenceIdleHandle = null;
+  }
+
+  const commit = () => {
+    persistenceTimeoutId = null;
+    persistenceIdleHandle = null;
+    commitPendingPersistence();
+  };
+
+  persistenceTimeoutId = window.setTimeout(commit, PERSISTENCE_DEBOUNCE_MS);
+
+  if (typeof window.requestIdleCallback === 'function') {
+    persistenceIdleHandle = window.requestIdleCallback(commit, {
+      timeout: PERSISTENCE_DEBOUNCE_MS
+    });
+  }
+}
+
+function flushPendingContentPersistence() {
+  if (persistenceTimeoutId) {
+    window.clearTimeout(persistenceTimeoutId);
+    persistenceTimeoutId = null;
+  }
+
+  if (typeof window.cancelIdleCallback === 'function' && persistenceIdleHandle) {
+    window.cancelIdleCallback(persistenceIdleHandle);
+    persistenceIdleHandle = null;
+  }
+
+  commitPendingPersistence();
+}
+
 function applyEditorUpdate(content, selectionStart = content.length, selectionEnd = selectionStart, options = {}) {
   const editor = editorElements.editor;
   if (!editor) {
@@ -1049,7 +1159,8 @@ function applyEditorUpdate(content, selectionStart = content.length, selectionEn
     persistContent = true,
     focus = true,
     recordHistory = true,
-    resetHistory = false
+    resetHistory = false,
+    historyBehavior = 'push'
   } = options;
   const previousScrollTop = editor.scrollTop;
   const previousScrollLeft = editor.scrollLeft;
@@ -1064,7 +1175,7 @@ function applyEditorUpdate(content, selectionStart = content.length, selectionEn
   updateCounts(content);
 
   if (persistContent) {
-    localStorage.setItem('markdown-editor-content', content);
+    persistEditorContent(content);
   }
 
   if (markDirty) {
@@ -1085,7 +1196,7 @@ function applyEditorUpdate(content, selectionStart = content.length, selectionEn
   if (resetHistory) {
     saveHistoryEntry({ content, selectionStart, selectionEnd }, { reset: true });
   } else if (recordHistory) {
-    saveHistoryEntry({ content, selectionStart, selectionEnd });
+    saveHistoryEntry({ content, selectionStart, selectionEnd }, { behavior: historyBehavior });
   } else if (!isNavigatingHistory) {
     updateUndoRedoButtons();
   }
@@ -1098,7 +1209,7 @@ function handleEditorInput() {
     const markdownValue = convertHtmlToMarkdown(htmlValue);
     markdownContent = markdownValue;
     updateCounts(markdownValue);
-    localStorage.setItem('markdown-editor-content', markdownValue);
+    persistEditorContent(markdownValue);
     isDirty = true;
     updateFileIndicator();
     return;
@@ -1106,7 +1217,7 @@ function handleEditorInput() {
 
   const { start, end } = getSelectionOffsets();
   const value = getPlainTextFromEditor();
-  applyEditorUpdate(value, start, end, { focus: false });
+  applyEditorUpdate(value, start, end, { focus: false, historyBehavior: 'merge' });
 }
 
 function handleTitleInputChange() {
@@ -1124,6 +1235,75 @@ function handleTitleInputBlur() {
   pendingFileName = normalizeDisplayName(editorElements.fileTitleInput.value);
   updateTitleInput();
   updateFileIndicator();
+}
+
+function getSelectedLines(start, end) {
+  const contentLength = markdownContent.length;
+  const safeStart = Math.max(0, Math.min(start, contentLength));
+  const safeEnd = Math.max(0, Math.min(end, contentLength));
+
+  let lineStart = safeStart;
+  while (lineStart > 0 && markdownContent[lineStart - 1] !== '\n') {
+    lineStart -= 1;
+  }
+
+  let lineEnd = safeEnd;
+  if (
+    lineEnd > lineStart &&
+    safeEnd > safeStart &&
+    safeEnd > 0 &&
+    markdownContent[safeEnd - 1] === '\n'
+  ) {
+    lineEnd -= 1;
+  }
+
+  if (lineEnd < lineStart) {
+    lineEnd = lineStart;
+  }
+
+  while (lineEnd < contentLength && markdownContent[lineEnd] !== '\n') {
+    lineEnd += 1;
+  }
+
+  const segment = markdownContent.slice(lineStart, lineEnd);
+  const lines = segment ? segment.split('\n') : [''];
+
+  return { lineStart, lineEnd, safeStart, safeEnd, lines };
+}
+
+function adjustIndexForAddition(index, lineStart, amount) {
+  if (index < lineStart) {
+    return index;
+  }
+  return index + amount;
+}
+
+function adjustIndexForRemoval(index, lineStart, amount) {
+  if (index <= lineStart) {
+    return index;
+  }
+  if (index <= lineStart + amount) {
+    return lineStart;
+  }
+  return index - amount;
+}
+
+function removeIndentationFromLine(line) {
+  if (!line) {
+    return { line: '', removed: 0 };
+  }
+  if (line.startsWith('\t')) {
+    return { line: line.slice(1), removed: 1 };
+  }
+  if (line.startsWith(INDENTATION_STRING)) {
+    return { line: line.slice(INDENTATION_STRING.length), removed: INDENTATION_STRING.length };
+  }
+  const match = line.match(/^ +/u);
+  if (match) {
+    const spacesToRemove = Math.min(match[0].length, INDENTATION_STRING.length);
+    return { line: line.slice(spacesToRemove), removed: spacesToRemove };
+  }
+  return { line, removed: 0 };
 }
 
 function handleEditorKeyDown(event) {
@@ -1153,6 +1333,68 @@ function handleEditorKeyDown(event) {
     return;
   }
 
+  if (event.key === 'Tab') {
+    event.preventDefault();
+
+    const { start, end } = getSelectionOffsets();
+    const { lineStart, lineEnd, safeStart, safeEnd, lines } = getSelectedLines(start, end);
+
+    if (!event.shiftKey) {
+      let adjustedStart = safeStart;
+      let adjustedEnd = safeEnd;
+      let processed = 0;
+
+      const updatedLines = lines.map((line, index) => {
+        const absoluteLineStart = lineStart + processed;
+        adjustedStart = adjustIndexForAddition(adjustedStart, absoluteLineStart, INDENTATION_STRING.length);
+        adjustedEnd = adjustIndexForAddition(adjustedEnd, absoluteLineStart, INDENTATION_STRING.length);
+        processed += line.length;
+        if (index < lines.length - 1) {
+          processed += 1;
+        }
+        return `${INDENTATION_STRING}${line}`;
+      });
+
+      const nextContent = `${markdownContent.slice(0, lineStart)}${updatedLines.join('\n')}${markdownContent.slice(
+        lineEnd
+      )}`;
+
+      applyEditorUpdate(nextContent, adjustedStart, adjustedEnd);
+      return;
+    }
+
+    let adjustedStart = safeStart;
+    let adjustedEnd = safeEnd;
+    let processed = 0;
+    let hasOutdentChange = false;
+
+    const updatedLines = lines.map((line, index) => {
+      const absoluteLineStart = lineStart + processed;
+      const { line: trimmedLine, removed } = removeIndentationFromLine(line);
+      if (removed > 0) {
+        adjustedStart = adjustIndexForRemoval(adjustedStart, absoluteLineStart, removed);
+        adjustedEnd = adjustIndexForRemoval(adjustedEnd, absoluteLineStart, removed);
+        hasOutdentChange = true;
+      }
+      processed += line.length;
+      if (index < lines.length - 1) {
+        processed += 1;
+      }
+      return trimmedLine;
+    });
+
+    if (!hasOutdentChange) {
+      return;
+    }
+
+    const nextContent = `${markdownContent.slice(0, lineStart)}${updatedLines.join('\n')}${markdownContent.slice(
+      lineEnd
+    )}`;
+
+    applyEditorUpdate(nextContent, adjustedStart, adjustedEnd);
+    return;
+  }
+
   if (event.key === 'Backspace') {
     const { start, end } = getSelectionOffsets();
     if (start === 0 && end === 0) {
@@ -1167,6 +1409,26 @@ function handleEditorKeyDown(event) {
     const caretPosition = deletionStart;
 
     applyEditorUpdate(nextContent, caretPosition, caretPosition);
+    return;
+  }
+
+  if (event.key === 'Delete') {
+    const { start, end } = getSelectionOffsets();
+    if (start === markdownContent.length && end === markdownContent.length) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const deletionStart = start;
+    const deletionEnd = start === end ? Math.min(markdownContent.length, end + 1) : end;
+    if (deletionStart === deletionEnd) {
+      return;
+    }
+
+    const nextContent = `${markdownContent.slice(0, deletionStart)}${markdownContent.slice(deletionEnd)}`;
+
+    applyEditorUpdate(nextContent, deletionStart, deletionStart);
   }
 }
 
@@ -1757,10 +2019,14 @@ function updateDriveButtons(isSignedIn) {
   if (editorElements.driveRefreshButton) {
     editorElements.driveRefreshButton.disabled = disabled;
   }
-  editorElements.driveSignInButton.hidden = isSignedIn;
-  editorElements.driveSignOutButton.hidden = false;
-  editorElements.driveSignOutButton.disabled = disabled;
-  editorElements.driveSignOutButton.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+  if (editorElements.driveSignInButton) {
+    editorElements.driveSignInButton.hidden = isSignedIn;
+  }
+  if (editorElements.driveSignOutButton) {
+    editorElements.driveSignOutButton.hidden = !isSignedIn;
+    editorElements.driveSignOutButton.disabled = disabled;
+    editorElements.driveSignOutButton.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+  }
   if (!isSignedIn && !isDriveConfigured()) {
     editorElements.driveStatus.textContent = 'Google Drive credentials not configured';
   } else {
@@ -2034,8 +2300,9 @@ async function saveToDrive({ forceNew = false, folderId = null, fileName = null,
     const converted = convertHtmlToMarkdown(latestHtml);
     markdownContent = converted;
     updateCounts(converted);
-    localStorage.setItem('markdown-editor-content', converted);
+    persistEditorContent(converted, { immediate: true });
   }
+  flushPendingContentPersistence();
   try {
     await ensureDriveAccess({ promptUser: true });
     let targetFileId = fileId ?? (forceNew ? null : currentFileId);
@@ -2138,6 +2405,20 @@ window.onGoogleAccountsLoaded = () => {
   }
   updateDriveConfigMessage();
 };
+
+window.addEventListener('beforeunload', () => {
+  flushPendingContentPersistence();
+});
+
+window.addEventListener('pagehide', () => {
+  flushPendingContentPersistence();
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    flushPendingContentPersistence();
+  }
+});
 
 document.addEventListener('keydown', (event) => {
   const editor = editorElements.editor;
