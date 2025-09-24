@@ -30,6 +30,14 @@
           <button type="button" data-action="unordered-list" aria-label="Unordered list">•</button>
           <button type="button" data-action="table" aria-label="Insert table">Table</button>
           <button type="button" data-action="horizontal-rule" aria-label="Insert horizontal rule">HR</button>
+          <button
+            type="button"
+            class="secondary-button"
+            id="editor-mode-toggle"
+            aria-pressed="false"
+          >
+            Switch to HTML
+          </button>
         </nav>
         <div class="toolbar" aria-label="Google Drive actions">
           <button type="button" class="secondary-button" id="drive-sign-in">Sign in</button>
@@ -131,6 +139,9 @@
       </div>
     </div>
 
+    <script defer src="vendor/marked.min.js"></script>
+    <script defer src="vendor/turndown.min.js"></script>
+    <script defer src="vendor/turndown-plugin-gfm.min.js"></script>
     <script src="app.js" defer></script>
     <script
       defer
