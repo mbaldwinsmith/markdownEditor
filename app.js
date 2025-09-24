@@ -1758,7 +1758,9 @@ function updateDriveButtons(isSignedIn) {
     editorElements.driveRefreshButton.disabled = disabled;
   }
   editorElements.driveSignInButton.hidden = isSignedIn;
-  editorElements.driveSignOutButton.hidden = !isSignedIn;
+  editorElements.driveSignOutButton.hidden = false;
+  editorElements.driveSignOutButton.disabled = disabled;
+  editorElements.driveSignOutButton.setAttribute('aria-disabled', disabled ? 'true' : 'false');
   if (!isSignedIn && !isDriveConfigured()) {
     editorElements.driveStatus.textContent = 'Google Drive credentials not configured';
   } else {
