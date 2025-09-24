@@ -574,7 +574,7 @@ function updateCounts(content) {
 
 function renderInlineMarkdown(text) {
   const fragment = document.createDocumentFragment();
-  const pattern = /\*\*([^*]+)\*\*|\*([^*]+)\*/gu;
+  const pattern = /\*\*([^*]+)\*\*|\*([^*]+)\*|~~([^~]+)~~/gu;
   let lastIndex = 0;
   let match;
 
@@ -598,6 +598,13 @@ function renderInlineMarkdown(text) {
       emphasis.textContent = match[2];
       fragment.appendChild(emphasis);
       fragment.appendChild(document.createTextNode('*'));
+    } else if (match[3] !== undefined) {
+      fragment.appendChild(document.createTextNode('~~'));
+      const strike = document.createElement('span');
+      strike.classList.add('md-strike');
+      strike.textContent = match[3];
+      fragment.appendChild(strike);
+      fragment.appendChild(document.createTextNode('~~'));
     }
 
     lastIndex = pattern.lastIndex;
