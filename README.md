@@ -47,12 +47,19 @@ Google requires that you supply your own OAuth client ID (and optionally an API 
 ```
 .
 ├── index.html          # Main application markup
+├── privacy.html        # Privacy Policy for the web app
 ├── styles.css          # Layout and visual styling
 ├── app.js              # Editor logic and Google Drive integration
 ├── manifest.json       # PWA manifest
 ├── service-worker.js   # Offline caching
+├── terms.html          # Terms of Service for the web app
 └── icons/              # PWA icons
 ```
+
+## Policies
+
+- [Privacy Policy](privacy.html)
+- [Terms of Service](terms.html)
 
 ## Development notes
 
