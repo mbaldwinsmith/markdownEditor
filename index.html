@@ -122,42 +122,52 @@
             </button>
           </div>
           <div class="toolbar toolbar-surface drive-actions" role="group" aria-label="Google Drive actions">
-            <button type="button" class="secondary-button drive-button" id="drive-sign-in">
-              <span class="drive-icon" aria-hidden="true">
-                <i class="fa-brands fa-google-drive"></i>
-              </span>
-              <span class="button-label">Sign in</span>
-            </button>
-            <button
-              type="button"
-              class="secondary-button drive-button"
-              id="drive-sign-out"
-              disabled
-              aria-disabled="true"
-            >
-              <span class="drive-icon" aria-hidden="true">
-                <i class="fa-brands fa-google-drive"></i>
-              </span>
-              <span class="button-label">Sign out</span>
-            </button>
-            <button type="button" class="secondary-button drive-button" id="drive-open" disabled>
-              <span class="drive-icon" aria-hidden="true">
-                <i class="fa-solid fa-folder-open"></i>
-              </span>
-              <span class="button-label">Open</span>
-            </button>
-            <button type="button" class="primary drive-button" id="drive-save" disabled>
-              <span class="drive-icon" aria-hidden="true">
-                <i class="fa-solid fa-cloud-arrow-up"></i>
-              </span>
-              <span class="button-label">Save</span>
-            </button>
-            <button type="button" class="secondary-button drive-button" id="drive-save-as" disabled>
-              <span class="drive-icon" aria-hidden="true">
-                <i class="fa-solid fa-file-export"></i>
-              </span>
-              <span class="button-label">Save as</span>
-            </button>
+            <div class="drive-menu-label" aria-hidden="true">
+              <i class="fa-solid fa-bars" aria-hidden="true"></i>
+              <span>File</span>
+            </div>
+            <div class="drive-menu-divider" aria-hidden="true"></div>
+            <div class="drive-menu-group" role="none">
+              <button type="button" class="secondary-button drive-button" id="drive-sign-in">
+                <span class="drive-icon" aria-hidden="true">
+                  <i class="fa-brands fa-google-drive"></i>
+                </span>
+                <span class="button-label">Sign in</span>
+              </button>
+              <button
+                type="button"
+                class="secondary-button drive-button"
+                id="drive-sign-out"
+                disabled
+                aria-disabled="true"
+              >
+                <span class="drive-icon" aria-hidden="true">
+                  <i class="fa-brands fa-google-drive"></i>
+                </span>
+                <span class="button-label">Sign out</span>
+              </button>
+            </div>
+            <div class="drive-menu-divider" aria-hidden="true"></div>
+            <div class="drive-menu-group" role="none">
+              <button type="button" class="secondary-button drive-button" id="drive-open" disabled>
+                <span class="drive-icon" aria-hidden="true">
+                  <i class="fa-solid fa-folder-open"></i>
+                </span>
+                <span class="button-label">Open</span>
+              </button>
+              <button type="button" class="primary drive-button" id="drive-save" disabled>
+                <span class="drive-icon" aria-hidden="true">
+                  <i class="fa-solid fa-cloud-arrow-up"></i>
+                </span>
+                <span class="button-label">Save</span>
+              </button>
+              <button type="button" class="secondary-button drive-button" id="drive-save-as" disabled>
+                <span class="drive-icon" aria-hidden="true">
+                  <i class="fa-solid fa-file-export"></i>
+                </span>
+                <span class="button-label">Save as</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -229,10 +239,30 @@
         </div>
         <div class="dialog-body">
           <div id="drive-alert" class="alert" hidden></div>
-          <p id="drive-config-status" class="dialog-description">
-            Provide Google Drive credentials through your secure runtime configuration to enable Drive sync. For local
-            development you can still supply a <code>google-oauth-client-id</code> meta tag value.
-          </p>
+          <div id="drive-config-status" class="cloud-config-card" role="status" aria-live="polite">
+            <div class="cloud-card-icon" aria-hidden="true">
+              <i class="fa-solid fa-cloud-bolt"></i>
+            </div>
+            <div class="cloud-card-content">
+              <p class="cloud-card-eyebrow">Google Cloud setup</p>
+              <h3 class="cloud-card-title">Connect your Drive credentials</h3>
+              <p class="cloud-card-message">
+                Provide Google Drive credentials through your secure runtime configuration to enable Drive sync. For local
+                development you can still supply a <code>google-oauth-client-id</code> meta tag value.
+              </p>
+              <div class="cloud-card-links">
+                <a
+                  class="cloud-card-link"
+                  href="https://console.cloud.google.com/"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  <span>Open Google Cloud Console</span>
+                  <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+                </a>
+              </div>
+            </div>
+          </div>
           <div class="drive-controls">
             <div class="toolbar">
               <button type="button" id="drive-refresh-files" class="secondary-button">Refresh</button>
