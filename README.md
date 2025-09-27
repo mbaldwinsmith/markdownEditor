@@ -10,6 +10,14 @@ A zero-build Progressive Web App Markdown editor designed to run directly from G
 - **Offline-ready** – installable PWA with caching via a service worker.
 - **Google Drive sync** – sign in with your Google account to open and save Markdown files.
 
+## Technologies used
+
+- **Vanilla JavaScript** – implements the editor logic, toolbar behaviour, and Google Drive integration without a build step.
+- **HTML5** – provides the static structure for the editor and supporting pages such as privacy and terms documents.
+- **CSS3** – styles the interface to deliver a clean, responsive editing experience across devices.
+- **Progressive Web App APIs** – manifest and service worker files enable offline usage and installation prompts.
+- **Google Drive API** – powers authentication and remote file operations when users connect their Google accounts.
+
 ## Getting started
 
 1. Clone or fork this repository.
