@@ -229,10 +229,30 @@
         </div>
         <div class="dialog-body">
           <div id="drive-alert" class="alert" hidden></div>
-          <p id="drive-config-status" class="dialog-description">
-            Provide Google Drive credentials through your secure runtime configuration to enable Drive sync. For local
-            development you can still supply a <code>google-oauth-client-id</code> meta tag value.
-          </p>
+          <div id="drive-config-status" class="cloud-config-card" role="status" aria-live="polite">
+            <div class="cloud-card-icon" aria-hidden="true">
+              <i class="fa-solid fa-cloud-bolt"></i>
+            </div>
+            <div class="cloud-card-content">
+              <p class="cloud-card-eyebrow">Google Cloud setup</p>
+              <h3 class="cloud-card-title">Connect your Drive credentials</h3>
+              <p class="cloud-card-message">
+                Provide Google Drive credentials through your secure runtime configuration to enable Drive sync. For local
+                development you can still supply a <code>google-oauth-client-id</code> meta tag value.
+              </p>
+              <div class="cloud-card-links">
+                <a
+                  class="cloud-card-link"
+                  href="https://console.cloud.google.com/"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  <span>Open Google Cloud Console</span>
+                  <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+                </a>
+              </div>
+            </div>
+          </div>
           <div class="drive-controls">
             <div class="toolbar">
               <button type="button" id="drive-refresh-files" class="secondary-button">Refresh</button>
