@@ -33,6 +33,7 @@ const editorElements = {
   driveSignInButton: document.getElementById('drive-sign-in'),
   driveSignOutButton: document.getElementById('drive-sign-out'),
   driveConfigStatus: document.getElementById('drive-config-status'),
+  driveConfigMessage: document.querySelector('#drive-config-status .cloud-card-message'),
   themeToggle: document.getElementById('theme-toggle'),
   themeToggleIcon: document.querySelector('#theme-toggle .theme-toggle-icon')
 };
@@ -2151,13 +2152,15 @@ function updateDriveConfigMessage() {
   if (!editorElements.driveConfigStatus) {
     return;
   }
-  if (isDriveConfigured()) {
-    editorElements.driveConfigStatus.textContent =
-      'Google Drive credentials loaded. Sign in to browse your files.';
-  } else {
-    editorElements.driveConfigStatus.textContent =
-      'Provide Google Drive credentials via your secure runtime configuration to enable Drive sync. For local development you may set the google-oauth-client-id meta tag.';
-  }
+  const configured = isDriveConfigured();
+  const messageElement = editorElements.driveConfigMessage ?? editorElements.driveConfigStatus;
+  const message = configured
+    ? 'Google Drive credentials loaded. Sign in to browse your files.'
+    : 'Provide Google Drive credentials via your secure runtime configuration to enable Drive sync. For local development you may set the google-oauth-client-id meta tag.';
+
+  editorElements.driveConfigStatus.classList.toggle('configured', configured);
+  editorElements.driveConfigStatus.dataset.state = configured ? 'configured' : 'missing';
+  messageElement.textContent = message;
 }
 
 function clearAccessToken() {

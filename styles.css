@@ -720,6 +720,144 @@ main {
   gap: 1rem;
 }
 
+.cloud-config-card {
+  position: relative;
+  display: flex;
+  gap: 1rem;
+  padding: 1.15rem 1.3rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.92), rgba(30, 64, 175, 0.65));
+  box-shadow: 0 18px 36px var(--surface-shadow);
+  overflow: hidden;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.cloud-config-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(circle at 0% 0%, rgba(56, 189, 248, 0.35), transparent 60%);
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+}
+
+.cloud-config-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 22px 44px var(--strong-shadow);
+  border-color: rgba(56, 189, 248, 0.55);
+}
+
+.cloud-config-card:hover::after {
+  opacity: 1;
+}
+
+.cloud-config-card .cloud-card-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.9rem;
+  background: rgba(56, 189, 248, 0.18);
+  color: var(--accent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 12px 24px rgba(15, 23, 42, 0.45);
+  font-size: 1.3rem;
+}
+
+.cloud-config-card .cloud-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.cloud-card-eyebrow {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(226, 232, 240, 0.75);
+}
+
+.cloud-card-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.cloud-card-message {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-subtle);
+}
+
+.cloud-card-links {
+  margin-top: 0.25rem;
+}
+
+.cloud-card-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(15, 23, 42, 0.35);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.cloud-card-link:hover,
+.cloud-card-link:focus-visible {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: rgba(56, 189, 248, 0.6);
+  color: #f8fafc;
+}
+
+.cloud-card-link:focus-visible {
+  outline: 2px solid rgba(56, 189, 248, 0.5);
+  outline-offset: 2px;
+}
+
+.cloud-config-card.configured {
+  border-color: rgba(134, 239, 172, 0.6);
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.92), rgba(21, 128, 61, 0.6));
+}
+
+.cloud-config-card.configured::after {
+  background: radial-gradient(circle at 0% 0%, rgba(134, 239, 172, 0.4), transparent 55%);
+}
+
+.cloud-config-card.configured .cloud-card-icon {
+  background: rgba(134, 239, 172, 0.2);
+  color: #86efac;
+}
+
+.cloud-config-card.configured .cloud-card-title {
+  color: #bbf7d0;
+}
+
+.cloud-config-card.configured .cloud-card-message {
+  color: rgba(226, 232, 240, 0.85);
+}
+
+.cloud-config-card.configured .cloud-card-link {
+  border-color: rgba(134, 239, 172, 0.6);
+}
+
+.cloud-config-card.configured .cloud-card-link:hover,
+.cloud-config-card.configured .cloud-card-link:focus-visible {
+  background: rgba(134, 239, 172, 0.25);
+  border-color: rgba(134, 239, 172, 0.8);
+  color: #0f172a;
+}
+
 .dialog-body label {
   display: flex;
   flex-direction: column;
