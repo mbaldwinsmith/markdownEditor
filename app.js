@@ -8,6 +8,9 @@ const editorElements = {
   fileIndicator: document.getElementById('current-file'),
   statusMessage: document.getElementById('status-message'),
   driveStatus: document.getElementById('drive-status'),
+  fileMenu: document.getElementById('file-menu'),
+  fileMenuToggle: document.getElementById('file-menu-toggle'),
+  fileMenuDropdown: document.getElementById('file-menu-dropdown'),
   tocList: document.getElementById('toc-list'),
   tocEmptyState: document.getElementById('toc-empty'),
   toolbarButtons: document.querySelectorAll('[data-action]'),
@@ -54,6 +57,7 @@ let tokenClient = null;
 let gisReady = false;
 let accessToken = null;
 let headerResizeObserver = null;
+let isFileMenuOpen = false;
 
 const CONTENT_STORAGE_KEY = 'markdown-editor-content';
 const BASE_DOCUMENT_TITLE = "Mark's Markdown Editor";
@@ -1542,6 +1546,42 @@ function updateSelectionCache() {
   }
 }
 
+function focusFirstFileMenuItem() {
+  if (!editorElements.fileMenuDropdown) {
+    return;
+  }
+  const firstAction = editorElements.fileMenuDropdown.querySelector('button:not(:disabled)');
+  firstAction?.focus();
+}
+
+function setFileMenuOpen(open, { focusFirst = false, returnFocus = false } = {}) {
+  const { fileMenu, fileMenuToggle, fileMenuDropdown } = editorElements;
+  if (!fileMenu || !fileMenuToggle || !fileMenuDropdown) {
+    return;
+  }
+
+  isFileMenuOpen = open;
+  fileMenu.dataset.open = open ? 'true' : 'false';
+  fileMenuToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  fileMenuDropdown.dataset.open = open ? 'true' : 'false';
+
+  if (open) {
+    fileMenuDropdown.removeAttribute('hidden');
+    if (focusFirst) {
+      focusFirstFileMenuItem();
+    }
+  } else {
+    fileMenuDropdown.setAttribute('hidden', '');
+    if (returnFocus) {
+      fileMenuToggle.focus();
+    }
+  }
+}
+
+function toggleFileMenu(options = {}) {
+  setFileMenuOpen(!isFileMenuOpen, options);
+}
+
 function setStatus(message, type = 'info') {
   editorElements.statusMessage.textContent = message;
   editorElements.statusMessage.className = '';
@@ -1602,6 +1642,37 @@ function attachEventListeners() {
   if (editorElements.modeToggle) {
     editorElements.modeToggle.addEventListener('mousedown', (event) => event.preventDefault());
     editorElements.modeToggle.addEventListener('click', () => toggleEditorMode());
+  }
+
+  if (editorElements.fileMenu && editorElements.fileMenuToggle && editorElements.fileMenuDropdown) {
+    editorElements.fileMenuToggle.addEventListener('click', (event) => {
+      const focusFirst = !isFileMenuOpen && event.detail === 0;
+      toggleFileMenu({ focusFirst });
+    });
+
+    editorElements.fileMenuToggle.addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        setFileMenuOpen(true, { focusFirst: true });
+      } else if (event.key === 'Escape') {
+        setFileMenuOpen(false);
+      }
+    });
+
+    editorElements.fileMenuDropdown.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setFileMenuOpen(false, { returnFocus: true });
+      }
+    });
+
+    editorElements.fileMenuDropdown.addEventListener('click', (event) => {
+      const button = event.target.closest('button');
+      if (!button || button.disabled) {
+        return;
+      }
+      setFileMenuOpen(false);
+    });
   }
 
   editorElements.dialogClose.addEventListener('click', () => closeDialog());
@@ -1666,6 +1737,28 @@ function attachEventListeners() {
   editorElements.dialog.addEventListener('click', (event) => {
     if (event.target === editorElements.dialog) {
       closeDialog();
+    }
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!isFileMenuOpen) {
+      return;
+    }
+    if (
+      !editorElements.fileMenu?.contains(event.target) &&
+      !editorElements.fileMenuDropdown?.contains(event.target)
+    ) {
+      setFileMenuOpen(false);
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (!isFileMenuOpen) {
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setFileMenuOpen(false, { returnFocus: true });
     }
   });
 }

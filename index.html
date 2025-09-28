@@ -44,6 +44,23 @@
         </div>
         <div class="toolbar-row">
           <div class="toolbar toolbar-surface formatting" role="toolbar" aria-label="Markdown formatting">
+            <div class="file-menu" id="file-menu">
+              <button
+                type="button"
+                class="secondary-button file-menu-toggle"
+                id="file-menu-toggle"
+                aria-haspopup="true"
+                aria-expanded="false"
+                aria-controls="file-menu-dropdown"
+                title="File actions"
+              >
+                <span class="file-menu-toggle-icon" aria-hidden="true">
+                  <i class="fa-solid fa-bars"></i>
+                </span>
+                <span class="button-label">File</span>
+                <i class="fa-solid fa-chevron-down file-menu-caret" aria-hidden="true"></i>
+              </button>
+            </div>
             <button
               type="button"
               class="icon-button"
@@ -121,14 +138,25 @@
               <span class="button-label">HTML</span>
             </button>
           </div>
-          <div class="toolbar toolbar-surface drive-actions" role="group" aria-label="Google Drive actions">
-            <div class="drive-menu-label" aria-hidden="true">
-              <i class="fa-solid fa-bars" aria-hidden="true"></i>
-              <span>File</span>
+          <div
+            class="toolbar toolbar-surface drive-actions file-menu-dropdown"
+            id="file-menu-dropdown"
+            role="menu"
+            hidden
+          >
+            <div class="drive-menu-header">
+              <div class="drive-menu-label" aria-hidden="true">
+                <i class="fa-solid fa-folder-tree" aria-hidden="true"></i>
+                <span>Drive</span>
+              </div>
             </div>
-            <div class="drive-menu-divider" aria-hidden="true"></div>
-            <div class="drive-menu-group" role="none">
-              <button type="button" class="secondary-button drive-button" id="drive-sign-in">
+            <div class="drive-menu-grid" role="none">
+              <button
+                type="button"
+                class="secondary-button drive-button"
+                id="drive-sign-in"
+                role="menuitem"
+              >
                 <span class="drive-icon" aria-hidden="true">
                   <i class="fa-brands fa-google-drive"></i>
                 </span>
@@ -138,6 +166,7 @@
                 type="button"
                 class="secondary-button drive-button"
                 id="drive-sign-out"
+                role="menuitem"
                 disabled
                 aria-disabled="true"
               >
@@ -146,22 +175,37 @@
                 </span>
                 <span class="button-label">Sign out</span>
               </button>
-            </div>
-            <div class="drive-menu-divider" aria-hidden="true"></div>
-            <div class="drive-menu-group" role="none">
-              <button type="button" class="secondary-button drive-button" id="drive-open" disabled>
+              <button
+                type="button"
+                class="secondary-button drive-button"
+                id="drive-open"
+                role="menuitem"
+                disabled
+              >
                 <span class="drive-icon" aria-hidden="true">
                   <i class="fa-solid fa-folder-open"></i>
                 </span>
                 <span class="button-label">Open</span>
               </button>
-              <button type="button" class="primary drive-button" id="drive-save" disabled>
+              <button
+                type="button"
+                class="primary drive-button"
+                id="drive-save"
+                role="menuitem"
+                disabled
+              >
                 <span class="drive-icon" aria-hidden="true">
                   <i class="fa-solid fa-cloud-arrow-up"></i>
                 </span>
                 <span class="button-label">Save</span>
               </button>
-              <button type="button" class="secondary-button drive-button" id="drive-save-as" disabled>
+              <button
+                type="button"
+                class="secondary-button drive-button"
+                id="drive-save-as"
+                role="menuitem"
+                disabled
+              >
                 <span class="drive-icon" aria-hidden="true">
                   <i class="fa-solid fa-file-export"></i>
                 </span>
