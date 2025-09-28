@@ -60,6 +60,7 @@ let headerResizeObserver = null;
 let isFileMenuOpen = false;
 
 const CONTENT_STORAGE_KEY = 'markdown-editor-content';
+const OFFLINE_FILES_STORAGE_KEY = 'markdown-editor-offline-files';
 const BASE_DOCUMENT_TITLE = "Mark's Markdown Editor";
 const INDENTATION_STRING = '  ';
 const PERSISTENCE_DEBOUNCE_MS = 300;
@@ -101,12 +102,24 @@ const HTML_VOID_ELEMENTS = new Set([
 
 const DRIVE_ROOT_ID = 'root';
 const DRIVE_ROOT_LABEL = 'My Drive';
+const VIRTUAL_ROOT_ID = 'files-root';
+const VIRTUAL_ROOT_LABEL = 'All files';
+const OFFLINE_ROOT_ID = 'offline-root';
+const OFFLINE_ROOT_LABEL = 'Offline drafts';
+
+const FILE_SOURCE_VIRTUAL = 'virtual';
+const FILE_SOURCE_OFFLINE = 'offline';
+const FILE_SOURCE_DRIVE = 'drive';
 
 let driveDialogMode = 'open';
-let currentDriveFolderId = DRIVE_ROOT_ID;
+let currentDriveFolderId = VIRTUAL_ROOT_ID;
+let currentFolderSource = FILE_SOURCE_VIRTUAL;
 let driveFolderPath = [];
 let pendingSaveFileId = null;
 let pendingSaveFileName = '';
+let pendingSaveFileSource = null;
+let currentFileSource = null;
+let currentOfflineParentId = OFFLINE_ROOT_ID;
 
 const discoveryDocs = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
 const scopes =
@@ -582,6 +595,161 @@ function ensureMarkdownExtension(name) {
 function normalizeDisplayName(name) {
   const trimmed = (name || '').trim();
   return trimmed || 'Untitled.md';
+}
+
+function getDefaultOfflineStore() {
+  return {
+    version: 1,
+    folders: {
+      [OFFLINE_ROOT_ID]: {
+        id: OFFLINE_ROOT_ID,
+        name: OFFLINE_ROOT_LABEL,
+        parentId: VIRTUAL_ROOT_ID,
+        updated: null
+      }
+    },
+    files: {}
+  };
+}
+
+function getOfflineStore() {
+  const raw = localStorage.getItem(OFFLINE_FILES_STORAGE_KEY);
+  if (!raw) {
+    return getDefaultOfflineStore();
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') {
+      return getDefaultOfflineStore();
+    }
+    if (!parsed.folders || typeof parsed.folders !== 'object') {
+      parsed.folders = {};
+    }
+    if (!parsed.files || typeof parsed.files !== 'object') {
+      parsed.files = {};
+    }
+    if (!parsed.folders[OFFLINE_ROOT_ID]) {
+      parsed.folders[OFFLINE_ROOT_ID] = {
+        id: OFFLINE_ROOT_ID,
+        name: OFFLINE_ROOT_LABEL,
+        parentId: VIRTUAL_ROOT_ID,
+        updated: null
+      };
+    }
+    return parsed;
+  } catch (error) {
+    console.warn('Unable to parse offline files store. Resetting to defaults.', error);
+    return getDefaultOfflineStore();
+  }
+}
+
+function saveOfflineStore(store) {
+  try {
+    localStorage.setItem(OFFLINE_FILES_STORAGE_KEY, JSON.stringify(store));
+  } catch (error) {
+    console.warn('Failed to persist offline files store.', error);
+  }
+}
+
+function generateOfflineId(prefix) {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function listOfflineEntries(folderId = OFFLINE_ROOT_ID) {
+  const store = getOfflineStore();
+  const entries = [];
+  Object.values(store.folders).forEach((folder) => {
+    if (folder.parentId === folderId && folder.id !== folderId) {
+      entries.push({
+        id: folder.id,
+        name: folder.name,
+        mimeType: 'application/vnd.google-apps.folder',
+        modifiedTime: folder.updated,
+        source: FILE_SOURCE_OFFLINE
+      });
+    }
+  });
+  Object.values(store.files).forEach((file) => {
+    if (file.parentId === folderId) {
+      entries.push({
+        id: file.id,
+        name: file.name,
+        mimeType: 'text/plain',
+        modifiedTime: file.updated,
+        source: FILE_SOURCE_OFFLINE
+      });
+    }
+  });
+  const collator = new Intl.Collator(undefined, { sensitivity: 'base' });
+  entries.sort((a, b) => {
+    const aIsFolder = a.mimeType === 'application/vnd.google-apps.folder';
+    const bIsFolder = b.mimeType === 'application/vnd.google-apps.folder';
+    if (aIsFolder !== bIsFolder) {
+      return aIsFolder ? -1 : 1;
+    }
+    return collator.compare(a.name || '', b.name || '');
+  });
+  return entries;
+}
+
+function writeOfflineFile({ fileId = null, fileName, content, folderId = OFFLINE_ROOT_ID } = {}) {
+  const store = getOfflineStore();
+  const targetFolderId = store.folders[folderId] ? folderId : OFFLINE_ROOT_ID;
+  const normalizedName = ensureMarkdownExtension(fileName);
+  const id = fileId || generateOfflineId('offline-file');
+  const timestamp = new Date().toISOString();
+  store.files[id] = {
+    id,
+    name: normalizedName,
+    content,
+    parentId: targetFolderId,
+    updated: timestamp
+  };
+  saveOfflineStore(store);
+  return {
+    id,
+    name: normalizedName,
+    parentId: targetFolderId,
+    updated: timestamp
+  };
+}
+
+function readOfflineFile(fileId) {
+  const store = getOfflineStore();
+  return store.files[fileId] || null;
+}
+
+function getVirtualRootEntries() {
+  const entries = [
+    {
+      id: OFFLINE_ROOT_ID,
+      name: OFFLINE_ROOT_LABEL,
+      mimeType: 'application/vnd.google-apps.folder',
+      modifiedTime: null,
+      source: FILE_SOURCE_OFFLINE
+    }
+  ];
+  if (accessToken) {
+    entries.push({
+      id: DRIVE_ROOT_ID,
+      name: DRIVE_ROOT_LABEL,
+      mimeType: 'application/vnd.google-apps.folder',
+      modifiedTime: null,
+      source: FILE_SOURCE_DRIVE
+    });
+  }
+  return entries;
+}
+
+function formatModifiedTime(value) {
+  if (!value) {
+    return '';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  return date.toLocaleString();
 }
 
 function updateHeaderOffset() {
@@ -1695,7 +1863,7 @@ function attachEventListeners() {
   });
 
   editorElements.driveSaveButton.addEventListener('click', () => {
-    saveToDrive();
+    handleSaveButtonClick();
   });
 
   editorElements.driveSaveAsButton.addEventListener('click', () => {
@@ -1994,12 +2162,14 @@ function openDialog(mode = 'open') {
   if (editorElements.driveFilesWrapper) {
     editorElements.driveFilesWrapper.hidden = true;
   }
-  driveFolderPath = [{ id: DRIVE_ROOT_ID, name: DRIVE_ROOT_LABEL }];
-  currentDriveFolderId = DRIVE_ROOT_ID;
+  driveFolderPath = [{ id: VIRTUAL_ROOT_ID, name: VIRTUAL_ROOT_LABEL, source: FILE_SOURCE_VIRTUAL }];
+  currentDriveFolderId = VIRTUAL_ROOT_ID;
+  currentFolderSource = FILE_SOURCE_VIRTUAL;
   pendingSaveFileId = null;
   pendingSaveFileName = '';
+  pendingSaveFileSource = null;
   updateDriveDialogMode();
-  refreshDriveFileList({ folderId: currentDriveFolderId });
+  refreshDriveFileList({ folderId: currentDriveFolderId, source: currentFolderSource });
   if (driveDialogMode === 'save') {
     const defaultName = getPendingFileNameForSaving();
     if (editorElements.driveFileNameInput) {
@@ -2022,14 +2192,13 @@ function closeDialog() {
   editorElements.dialog.setAttribute('aria-hidden', 'true');
   pendingSaveFileId = null;
   pendingSaveFileName = '';
+  pendingSaveFileSource = null;
 }
 
 function updateDriveDialogMode() {
   const isSaveMode = driveDialogMode === 'save';
   if (editorElements.driveDialogTitle) {
-    editorElements.driveDialogTitle.textContent = isSaveMode
-      ? 'Save to Google Drive'
-      : 'Open from Google Drive';
+    editorElements.driveDialogTitle.textContent = isSaveMode ? 'Save file' : 'Open file';
   }
   if (editorElements.driveSaveControls) {
     editorElements.driveSaveControls.hidden = !isSaveMode;
@@ -2046,21 +2215,23 @@ function updateDrivePathDisplay() {
     return;
   }
   if (!driveFolderPath.length) {
-    driveFolderPath = [{ id: DRIVE_ROOT_ID, name: DRIVE_ROOT_LABEL }];
+    driveFolderPath = [{ id: VIRTUAL_ROOT_ID, name: VIRTUAL_ROOT_LABEL, source: FILE_SOURCE_VIRTUAL }];
   }
   editorElements.driveBreadcrumbs.innerHTML = '';
   driveFolderPath.forEach((entry, index) => {
     const button = document.createElement('button');
     button.type = 'button';
     button.textContent = entry.name || 'Untitled';
-    button.disabled = index === driveFolderPath.length - 1;
+    const isLast = index === driveFolderPath.length - 1;
+    button.disabled = isLast;
     if (!button.disabled) {
       button.addEventListener('click', () => {
         driveFolderPath = driveFolderPath.slice(0, index + 1);
         const target = driveFolderPath[driveFolderPath.length - 1];
         currentDriveFolderId = target.id;
+        currentFolderSource = target.source ?? FILE_SOURCE_VIRTUAL;
         clearDriveSelection();
-        refreshDriveFileList({ folderId: target.id });
+        refreshDriveFileList({ folderId: target.id, source: currentFolderSource });
       });
     }
     editorElements.driveBreadcrumbs.appendChild(button);
@@ -2088,8 +2259,9 @@ function navigateToParentFolder() {
   driveFolderPath = driveFolderPath.slice(0, -1);
   const parent = driveFolderPath[driveFolderPath.length - 1];
   currentDriveFolderId = parent.id;
+  currentFolderSource = parent.source ?? FILE_SOURCE_VIRTUAL;
   clearDriveSelection();
-  refreshDriveFileList({ folderId: parent.id });
+  refreshDriveFileList({ folderId: parent.id, source: currentFolderSource });
 }
 
 function enterDriveFolder(folder) {
@@ -2097,15 +2269,17 @@ function enterDriveFolder(folder) {
     return;
   }
   const name = folder.name || 'Untitled folder';
-  driveFolderPath = [...driveFolderPath, { id: folder.id, name }];
+  driveFolderPath = [...driveFolderPath, { id: folder.id, name, source: folder.source ?? currentFolderSource }];
   currentDriveFolderId = folder.id;
+  currentFolderSource = folder.source ?? currentFolderSource;
   clearDriveSelection();
-  refreshDriveFileList({ folderId: folder.id });
+  refreshDriveFileList({ folderId: folder.id, source: currentFolderSource });
 }
 
 function clearDriveSelection() {
   pendingSaveFileId = null;
   pendingSaveFileName = '';
+  pendingSaveFileSource = null;
   if (!editorElements.driveFilesBody) {
     return;
   }
@@ -2120,6 +2294,7 @@ function selectDriveFileForSave(file, row) {
   }
   clearDriveSelection();
   pendingSaveFileId = file.id;
+  pendingSaveFileSource = file.source ?? currentFolderSource;
   if (row) {
     row.classList.add('selected');
   }
@@ -2145,24 +2320,36 @@ async function handleDriveSaveConfirm() {
     return;
   }
   const fileName = ensureMarkdownExtension(input);
-  const options = {
-    folderId: currentDriveFolderId,
-    fileName
-  };
-  if (pendingSaveFileId) {
-    options.fileId = pendingSaveFileId;
-  } else {
-    options.forceNew = true;
-  }
   const confirmButton = editorElements.driveSaveConfirmButton;
   if (confirmButton) {
     confirmButton.disabled = true;
   }
-  const success = await saveToDrive(options);
+  let success = false;
+  let shouldCloseDialog = false;
+  if (currentFolderSource === FILE_SOURCE_OFFLINE) {
+    const targetId = pendingSaveFileSource === FILE_SOURCE_OFFLINE ? pendingSaveFileId : null;
+    const saved = saveToOffline({ fileId: targetId, fileName, folderId: currentDriveFolderId });
+    success = Boolean(saved);
+    shouldCloseDialog = success;
+  } else if (currentFolderSource === FILE_SOURCE_DRIVE) {
+    const options = {
+      folderId: currentDriveFolderId,
+      fileName
+    };
+    if (pendingSaveFileId && pendingSaveFileSource === FILE_SOURCE_DRIVE) {
+      options.fileId = pendingSaveFileId;
+    } else {
+      options.forceNew = true;
+    }
+    success = await saveToDrive(options);
+    shouldCloseDialog = success;
+  } else {
+    showDriveError('Select a location to save the file.');
+  }
   if (confirmButton) {
     confirmButton.disabled = false;
   }
-  if (success) {
+  if (success && shouldCloseDialog) {
     closeDialog();
   }
 }
@@ -2188,12 +2375,17 @@ function showDriveError(error) {
   } else if (error?.message) {
     message = error.message;
   }
-  editorElements.dialogAlert.textContent = message;
-  editorElements.dialogAlert.hidden = false;
+  if (editorElements.dialogAlert) {
+    editorElements.dialogAlert.textContent = message;
+    editorElements.dialogAlert.hidden = false;
+  }
   setStatus(message, 'error');
 }
 
 function clearDriveError() {
+  if (!editorElements.dialogAlert) {
+    return;
+  }
   editorElements.dialogAlert.hidden = true;
   editorElements.dialogAlert.textContent = '';
 }
@@ -2248,8 +2440,8 @@ function updateDriveConfigMessage() {
   const configured = isDriveConfigured();
   const messageElement = editorElements.driveConfigMessage ?? editorElements.driveConfigStatus;
   const message = configured
-    ? 'Google Drive credentials loaded. Sign in to browse your files.'
-    : 'Provide Google Drive credentials via your secure runtime configuration to enable Drive sync. For local development you may set the google-oauth-client-id meta tag.';
+    ? 'Google Drive credentials loaded. Sign in to browse Drive files alongside your offline drafts.'
+    : 'Provide Google Drive credentials via your secure runtime configuration to enable Drive sync. Offline drafts remain available even without Drive access.';
 
   editorElements.driveConfigStatus.classList.toggle('configured', configured);
   editorElements.driveConfigStatus.dataset.state = configured ? 'configured' : 'missing';
@@ -2267,29 +2459,49 @@ function clearAccessToken() {
   if (editorElements.driveFilesWrapper) {
     editorElements.driveFilesWrapper.hidden = true;
   }
+  driveFolderPath = [{ id: VIRTUAL_ROOT_ID, name: VIRTUAL_ROOT_LABEL, source: FILE_SOURCE_VIRTUAL }];
+  currentDriveFolderId = VIRTUAL_ROOT_ID;
+  currentFolderSource = FILE_SOURCE_VIRTUAL;
+  clearDriveSelection();
   updateDriveButtons(false);
 }
 
 function updateDriveButtons(isSignedIn) {
-  const disabled = !isSignedIn;
-  editorElements.driveOpenButton.disabled = disabled;
-  editorElements.driveSaveButton.disabled = disabled;
-  editorElements.driveSaveAsButton.disabled = disabled;
+  const hasOfflineFile = currentFileSource === FILE_SOURCE_OFFLINE && Boolean(currentFileId);
+  const hasDriveFile = currentFileSource === FILE_SOURCE_DRIVE && Boolean(currentFileId);
+  const canQuickSave = hasOfflineFile || (hasDriveFile && isSignedIn);
+  if (editorElements.driveOpenButton) {
+    editorElements.driveOpenButton.disabled = false;
+  }
+  if (editorElements.driveSaveButton) {
+    editorElements.driveSaveButton.disabled = false;
+    editorElements.driveSaveButton.dataset.quickSave = canQuickSave ? 'true' : 'false';
+    editorElements.driveSaveButton.setAttribute('aria-disabled', 'false');
+  }
+  if (editorElements.driveSaveAsButton) {
+    editorElements.driveSaveAsButton.disabled = false;
+    editorElements.driveSaveAsButton.setAttribute('aria-disabled', 'false');
+  }
   if (editorElements.driveRefreshButton) {
-    editorElements.driveRefreshButton.disabled = disabled;
+    editorElements.driveRefreshButton.disabled = false;
   }
   if (editorElements.driveSignInButton) {
     editorElements.driveSignInButton.hidden = isSignedIn;
   }
   if (editorElements.driveSignOutButton) {
     editorElements.driveSignOutButton.hidden = !isSignedIn;
-    editorElements.driveSignOutButton.disabled = disabled;
-    editorElements.driveSignOutButton.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    editorElements.driveSignOutButton.disabled = !isSignedIn;
+    editorElements.driveSignOutButton.setAttribute('aria-disabled', !isSignedIn ? 'true' : 'false');
   }
-  if (!isSignedIn && !isDriveConfigured()) {
+  if (!editorElements.driveStatus) {
+    return;
+  }
+  if (isSignedIn) {
+    editorElements.driveStatus.textContent = 'Connected to Google Drive';
+  } else if (!isDriveConfigured()) {
     editorElements.driveStatus.textContent = 'Google Drive credentials not configured';
   } else {
-    editorElements.driveStatus.textContent = isSignedIn ? 'Connected to Google Drive' : 'Not connected';
+    editorElements.driveStatus.textContent = 'Offline mode – Drive not connected';
   }
 }
 
@@ -2423,6 +2635,7 @@ async function signInToGoogle() {
   try {
     await ensureDriveAccess({ promptUser: true, forcePrompt: true });
     setStatus('Signed in to Google Drive.', 'success');
+    refreshDriveFileList({ folderId: currentDriveFolderId, source: currentFolderSource });
   } catch (error) {
     showDriveError(error);
   }
@@ -2439,50 +2652,71 @@ function signOutOfGoogle() {
   clearDriveError();
   clearAccessToken();
   setStatus('Signed out of Google Drive.');
+  refreshDriveFileList({ folderId: currentDriveFolderId, source: currentFolderSource });
 }
 
-async function refreshDriveFileList({ folderId = currentDriveFolderId } = {}) {
+async function refreshDriveFileList({ folderId = currentDriveFolderId, source = currentFolderSource } = {}) {
   clearDriveError();
   if (!driveFolderPath.length) {
-    driveFolderPath = [{ id: DRIVE_ROOT_ID, name: DRIVE_ROOT_LABEL }];
+    driveFolderPath = [{ id: VIRTUAL_ROOT_ID, name: VIRTUAL_ROOT_LABEL, source: FILE_SOURCE_VIRTUAL }];
   }
-  currentDriveFolderId = folderId || DRIVE_ROOT_ID;
+  currentDriveFolderId = folderId || VIRTUAL_ROOT_ID;
+  currentFolderSource = source || FILE_SOURCE_VIRTUAL;
   if (editorElements.driveFilesWrapper) {
     editorElements.driveFilesWrapper.hidden = true;
   }
   if (driveDialogMode === 'save') {
     clearDriveSelection();
   }
+  if (editorElements.dialogAlert) {
+    editorElements.dialogAlert.hidden = true;
+    editorElements.dialogAlert.textContent = '';
+  }
+  let entries = [];
   try {
-    await ensureDriveAccess({ promptUser: true });
-    const query = [
-      `'${currentDriveFolderId}' in parents`,
-      'trashed=false',
-      "(mimeType='application/vnd.google-apps.folder' or mimeType='text/plain' or mimeType='text/markdown' or name contains '.md' or name contains '.markdown')"
-    ].join(' and ');
-    const response = await gapi.client.drive.files.list({
-      pageSize: 100,
-      orderBy: 'folder,name_natural',
-      q: query,
-      fields: 'files(id, name, mimeType, modifiedTime)'
-    });
-    const files = response.result.files || [];
-    populateDriveFiles(files);
-    const hasEntries = files.length > 0;
-    if (editorElements.driveFilesWrapper) {
-      editorElements.driveFilesWrapper.hidden = !hasEntries;
+    if (currentFolderSource === FILE_SOURCE_VIRTUAL) {
+      entries = getVirtualRootEntries();
+    } else if (currentFolderSource === FILE_SOURCE_OFFLINE) {
+      entries = listOfflineEntries(currentDriveFolderId);
+    } else if (currentFolderSource === FILE_SOURCE_DRIVE) {
+      await ensureDriveAccess({ promptUser: true });
+      const query = [
+        `'${currentDriveFolderId}' in parents`,
+        'trashed=false',
+        "(mimeType='application/vnd.google-apps.folder' or mimeType='text/plain' or mimeType='text/markdown' or name contains '.md' or name contains '.markdown')"
+      ].join(' and ');
+      const response = await gapi.client.drive.files.list({
+        pageSize: 100,
+        orderBy: 'folder,name_natural',
+        q: query,
+        fields: 'files(id, name, mimeType, modifiedTime)'
+      });
+      const files = response.result.files || [];
+      entries = files.map((file) => ({ ...file, source: FILE_SOURCE_DRIVE }));
     }
-    if (!hasEntries) {
-      editorElements.dialogAlert.textContent =
-        driveDialogMode === 'open'
-          ? 'No Markdown files found in this folder.'
-          : 'This folder is empty. Save a file here to get started.';
-      editorElements.dialogAlert.hidden = false;
-    }
-    updateDrivePathDisplay();
   } catch (error) {
     showDriveError(error);
   }
+  populateDriveFiles(entries);
+  const hasEntries = entries.length > 0;
+  if (editorElements.driveFilesWrapper) {
+    editorElements.driveFilesWrapper.hidden = !hasEntries;
+  }
+  if (!hasEntries && editorElements.dialogAlert) {
+    if (currentFolderSource === FILE_SOURCE_OFFLINE) {
+      editorElements.dialogAlert.textContent =
+        driveDialogMode === 'open'
+          ? 'No offline files found yet. Save a document to access it here.'
+          : 'This offline folder is empty. Save a file to create it.';
+    } else if (currentFolderSource === FILE_SOURCE_DRIVE) {
+      editorElements.dialogAlert.textContent =
+        driveDialogMode === 'open'
+          ? 'No Markdown files found in this Google Drive folder.'
+          : 'This Google Drive folder is empty. Save a file here to get started.';
+    }
+    editorElements.dialogAlert.hidden = !editorElements.dialogAlert.textContent;
+  }
+  updateDrivePathDisplay();
 }
 
 function populateDriveFiles(files) {
@@ -2514,14 +2748,18 @@ function populateDriveFiles(files) {
       });
     } else {
       icon.textContent = '📄';
-      modifiedCell.textContent = file.modifiedTime ? new Date(file.modifiedTime).toLocaleString() : '';
+      modifiedCell.textContent = formatModifiedTime(file.modifiedTime);
       if (isSaveMode) {
         row.addEventListener('click', () => {
           selectDriveFileForSave(file, row);
         });
       } else {
         row.addEventListener('click', () => {
-          loadDriveFile(file.id, file.name);
+          if (file.source === FILE_SOURCE_OFFLINE) {
+            loadOfflineFile(file.id);
+          } else {
+            loadDriveFile(file.id, file.name);
+          }
           closeDialog();
         });
       }
@@ -2542,26 +2780,99 @@ async function loadDriveFile(fileId, name) {
     const normalizedName = normalizeDisplayName(name);
     currentFileName = normalizedName;
     pendingFileName = normalizedName;
+    currentFileSource = FILE_SOURCE_DRIVE;
+    currentOfflineParentId = OFFLINE_ROOT_ID;
     updateTitleInput();
     applyEditorUpdate(content, content.length, content.length, { markDirty: false, resetHistory: true });
-    localStorage.setItem('markdown-editor-current-file', JSON.stringify({ id: fileId, name: normalizedName }));
+    localStorage.setItem(
+      'markdown-editor-current-file',
+      JSON.stringify({ id: fileId, name: normalizedName, source: FILE_SOURCE_DRIVE })
+    );
     setStatus(`Loaded ${normalizedName} from Google Drive.`, 'success');
+    updateDriveButtons(true);
   } catch (error) {
     showDriveError(error);
   }
 }
 
-async function saveToDrive({ forceNew = false, folderId = null, fileName = null, fileId = null } = {}) {
+function loadOfflineFile(fileId) {
   clearDriveError();
+  const file = readOfflineFile(fileId);
+  if (!file) {
+    showDriveError('Unable to load the selected offline file.');
+    return;
+  }
+  const content = file.content ?? '';
+  currentFileId = file.id;
+  currentFileSource = FILE_SOURCE_OFFLINE;
+  currentOfflineParentId = file.parentId || OFFLINE_ROOT_ID;
+  const normalizedName = normalizeDisplayName(file.name);
+  currentFileName = normalizedName;
+  pendingFileName = normalizedName;
+  updateTitleInput();
+  applyEditorUpdate(content, content.length, content.length, { markDirty: false, resetHistory: true });
+  localStorage.setItem(
+    'markdown-editor-current-file',
+    JSON.stringify({
+      id: file.id,
+      name: normalizedName,
+      source: FILE_SOURCE_OFFLINE,
+      parentId: currentOfflineParentId
+    })
+  );
+  setStatus(`Loaded ${normalizedName} from offline storage.`, 'success');
+  updateDriveButtons(Boolean(accessToken));
+}
+
+function prepareContentForSaving() {
+  let content = markdownContent;
   if (editorMode === 'html') {
     const latestHtml = getHtmlEditorContent();
     htmlContent = latestHtml;
     const converted = convertHtmlToMarkdown(latestHtml);
     markdownContent = converted;
     updateCounts(converted);
-    persistEditorContent(converted, { immediate: true });
+    content = converted;
   }
+  persistEditorContent(content, { immediate: true });
   flushPendingContentPersistence();
+  return content;
+}
+
+function saveToOffline({ fileId = null, fileName = null, folderId = null } = {}) {
+  const content = prepareContentForSaving();
+  const targetFolderId = folderId || currentOfflineParentId || OFFLINE_ROOT_ID;
+  const targetName = ensureMarkdownExtension(fileName ?? getPendingFileNameForSaving());
+  const saved = writeOfflineFile({ fileId, fileName: targetName, content, folderId: targetFolderId });
+  if (!saved) {
+    return null;
+  }
+  currentFileId = saved.id;
+  const normalizedName = normalizeDisplayName(saved.name);
+  currentFileName = normalizedName;
+  pendingFileName = normalizedName;
+  currentFileSource = FILE_SOURCE_OFFLINE;
+  currentOfflineParentId = saved.parentId || OFFLINE_ROOT_ID;
+  isDirty = false;
+  updateTitleInput();
+  updateFileIndicator();
+  localStorage.setItem(
+    'markdown-editor-current-file',
+    JSON.stringify({
+      id: currentFileId,
+      name: currentFileName,
+      source: FILE_SOURCE_OFFLINE,
+      parentId: currentOfflineParentId
+    })
+  );
+  setStatus(`Saved ${currentFileName} offline.`, 'success');
+  updateDriveButtons(Boolean(accessToken));
+  return saved;
+}
+
+async function saveToDrive({ forceNew = false, folderId = null, fileName = null, fileId = null } = {}) {
+  clearDriveError();
+  const content = prepareContentForSaving();
   try {
     await ensureDriveAccess({ promptUser: true });
     let targetFileId = fileId ?? (forceNew ? null : currentFileId);
@@ -2576,22 +2887,39 @@ async function saveToDrive({ forceNew = false, folderId = null, fileName = null,
     } else {
       targetFileName = ensureMarkdownExtension(targetFileName);
     }
-    const content = markdownContent;
     const result = await uploadToDrive(targetFileId, targetFileName, content, targetFileId ? null : folderId);
     currentFileId = result.id;
     const savedName = normalizeDisplayName(result?.name || targetFileName);
     currentFileName = savedName;
     pendingFileName = savedName;
+    currentFileSource = FILE_SOURCE_DRIVE;
+    currentOfflineParentId = OFFLINE_ROOT_ID;
     isDirty = false;
     updateTitleInput();
     updateFileIndicator();
-    localStorage.setItem('markdown-editor-current-file', JSON.stringify({ id: currentFileId, name: savedName }));
+    localStorage.setItem(
+      'markdown-editor-current-file',
+      JSON.stringify({ id: currentFileId, name: savedName, source: FILE_SOURCE_DRIVE })
+    );
     setStatus(`Saved ${savedName} to Google Drive.`, 'success');
+    updateDriveButtons(true);
     return true;
   } catch (error) {
     showDriveError(error);
     return false;
   }
+}
+
+async function handleSaveButtonClick() {
+  if (currentFileSource === FILE_SOURCE_OFFLINE && currentFileId) {
+    saveToOffline({ fileId: currentFileId, folderId: currentOfflineParentId, fileName: currentFileName });
+    return;
+  }
+  if (currentFileSource === FILE_SOURCE_DRIVE && currentFileId) {
+    await saveToDrive({ fileId: currentFileId, fileName: currentFileName });
+    return;
+  }
+  openDialog('save');
 }
 
 async function uploadToDrive(fileId, fileName, content, folderId = null) {
@@ -2633,12 +2961,25 @@ function restoreLastFile() {
   if (stored?.name) {
     currentFileName = normalizeDisplayName(stored.name);
     currentFileId = stored.id || null;
+    currentFileSource = stored.source || (stored.id ? FILE_SOURCE_DRIVE : null);
+    if (currentFileSource === FILE_SOURCE_OFFLINE) {
+      currentOfflineParentId = stored.parentId || OFFLINE_ROOT_ID;
+    } else {
+      currentOfflineParentId = OFFLINE_ROOT_ID;
+      if (currentFileSource !== FILE_SOURCE_DRIVE && currentFileId) {
+        currentFileSource = FILE_SOURCE_DRIVE;
+      }
+    }
   } else {
     currentFileName = normalizeDisplayName(currentFileName);
+    currentFileId = null;
+    currentFileSource = null;
+    currentOfflineParentId = OFFLINE_ROOT_ID;
   }
   pendingFileName = currentFileName;
   updateTitleInput();
   updateFileIndicator();
+  updateDriveButtons(Boolean(accessToken));
 }
 
 window.onGapiLoaded = () => {
