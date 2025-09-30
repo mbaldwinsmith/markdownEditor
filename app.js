@@ -14,6 +14,8 @@ const editorElements = {
   tocList: document.getElementById('toc-list'),
   tocEmptyState: document.getElementById('toc-empty'),
   toolbarButtons: document.querySelectorAll('[data-action]'),
+  formattingToolbar: document.getElementById('formatting-toolbar'),
+  mobileToolbarToggle: document.getElementById('mobile-toolbar-toggle'),
   undoButton: document.querySelector('[data-action="undo"]'),
   redoButton: document.querySelector('[data-action="redo"]'),
   modeToggle: document.getElementById('editor-mode-toggle'),
@@ -59,6 +61,13 @@ let accessToken = null;
 let headerResizeObserver = null;
 let isFileMenuOpen = false;
 
+let preferPlainTextRendering = false;
+let coarsePointerQuery = null;
+let hoverNoneQuery = null;
+let touchWidthQuery = null;
+let mobileToolbarQuery = null;
+let isFormattingToolbarCollapsed = true;
+
 const CONTENT_STORAGE_KEY = 'markdown-editor-content';
 const OFFLINE_FILES_STORAGE_KEY = 'markdown-editor-offline-files';
 const BASE_DOCUMENT_TITLE = "Mark's Markdown Editor";
@@ -70,6 +79,8 @@ const THEME_COLOR_MAP = {
   light: '#f8fafc'
 };
 const COLOR_SCHEME_QUERY = '(prefers-color-scheme: light)';
+const TOUCH_RENDER_BREAKPOINT_QUERY = '(max-width: 900px)';
+const MOBILE_TOOLBAR_BREAKPOINT_QUERY = '(max-width: 720px)';
 
 let pendingContentPersistence = null;
 let persistenceTimeoutId = null;
@@ -800,6 +811,8 @@ function updateTitleInput() {
 
 async function init() {
   configureMarkdownConverters();
+  setupTouchEditorOptimizations();
+  setupMobileToolbarToggle();
   const savedContent = localStorage.getItem(CONTENT_STORAGE_KEY);
   const initialContent = savedContent ?? defaultMarkdown;
   applyEditorUpdate(initialContent, initialContent.length, initialContent.length, {
@@ -885,12 +898,30 @@ function renderFormattedMarkdown(content) {
   editor.classList.remove('html-mode');
   const tocContainer = document.getElementById('table-of-contents');
   if (tocContainer) {
-    tocContainer.hidden = false;
+    tocContainer.hidden = preferPlainTextRendering;
   }
-  const fragment = document.createDocumentFragment();
   const lines = content.length ? content.split(/\n/u) : [''];
   const headings = [];
   const slugCounts = new Map();
+  if (preferPlainTextRendering) {
+    lines.forEach((line) => {
+      const headingMatch = line.match(/^(#{1,6})\s+(.*)$/u);
+      if (!headingMatch) {
+        return;
+      }
+      const level = Math.min(headingMatch[1].length, 6);
+      const headingText = extractHeadingText(headingMatch[2]);
+      const displayText = headingText || 'Untitled heading';
+      const headingId = generateHeadingId(displayText, level, slugCounts);
+      headings.push({ id: headingId, level, text: displayText });
+    });
+    editor.textContent = content;
+    editor.dataset.rendering = 'plain';
+    updateTableOfContents(headings);
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
 
   lines.forEach((line, index) => {
     const lineElement = document.createElement('div');
@@ -928,6 +959,7 @@ function renderFormattedMarkdown(content) {
 
   editor.innerHTML = '';
   editor.appendChild(fragment);
+  editor.dataset.rendering = 'formatted';
   updateTableOfContents(headings);
 }
 
@@ -939,6 +971,7 @@ function renderHtmlEditor(content) {
 
   editor.classList.add('html-mode');
   editor.textContent = content || '';
+  editor.dataset.rendering = 'html';
   const tocContainer = document.getElementById('table-of-contents');
   if (tocContainer) {
     tocContainer.hidden = true;
@@ -950,6 +983,154 @@ function renderHtmlEditor(content) {
   if (editorElements.tocEmptyState) {
     editorElements.tocEmptyState.hidden = true;
   }
+}
+
+function computePlainTextRenderingPreference() {
+  const coarse = coarsePointerQuery ? coarsePointerQuery.matches : false;
+  const noHover = hoverNoneQuery ? hoverNoneQuery.matches : false;
+  const narrow = touchWidthQuery ? touchWidthQuery.matches : false;
+  return (coarse || noHover) && narrow;
+}
+
+function applyPlainTextRenderingPreference({ forceUpdate = false } = {}) {
+  const body = document.body;
+  if (!body) {
+    return;
+  }
+
+  const nextPreference = computePlainTextRenderingPreference();
+  if (!forceUpdate && nextPreference === preferPlainTextRendering) {
+    return;
+  }
+
+  preferPlainTextRendering = nextPreference;
+  body.classList.toggle('touch-editor', preferPlainTextRendering);
+
+  if (editorMode !== 'markdown') {
+    updateHeaderOffset();
+    return;
+  }
+
+  const selection = getSelectionOffsets();
+  renderFormattedMarkdown(markdownContent);
+
+  if (document.activeElement === editorElements.editor) {
+    setSelectionRange(selection.start, selection.end);
+  }
+
+  updateHeaderOffset();
+}
+
+function setupTouchEditorOptimizations() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    preferPlainTextRendering = false;
+    return;
+  }
+
+  coarsePointerQuery = window.matchMedia('(pointer: coarse)');
+  hoverNoneQuery = window.matchMedia('(hover: none)');
+  touchWidthQuery = window.matchMedia(TOUCH_RENDER_BREAKPOINT_QUERY);
+
+  const handleChange = () => applyPlainTextRenderingPreference();
+
+  if (typeof coarsePointerQuery.addEventListener === 'function') {
+    coarsePointerQuery.addEventListener('change', handleChange);
+  } else if (typeof coarsePointerQuery.addListener === 'function') {
+    coarsePointerQuery.addListener(handleChange);
+  }
+  if (typeof hoverNoneQuery.addEventListener === 'function') {
+    hoverNoneQuery.addEventListener('change', handleChange);
+  } else if (typeof hoverNoneQuery.addListener === 'function') {
+    hoverNoneQuery.addListener(handleChange);
+  }
+  if (typeof touchWidthQuery.addEventListener === 'function') {
+    touchWidthQuery.addEventListener('change', handleChange);
+  } else if (typeof touchWidthQuery.addListener === 'function') {
+    touchWidthQuery.addListener(handleChange);
+  }
+
+  applyPlainTextRenderingPreference({ forceUpdate: true });
+}
+
+function applyFormattingToolbarVisibility() {
+  const toolbar = editorElements.formattingToolbar;
+  const toggle = editorElements.mobileToolbarToggle;
+  if (!toolbar || !toggle) {
+    return;
+  }
+
+  const label = toggle.querySelector('.mobile-toolbar-label');
+  const isMobile = mobileToolbarQuery ? mobileToolbarQuery.matches : false;
+
+  if (!isMobile) {
+    toolbar.hidden = false;
+    toggle.hidden = true;
+    toggle.setAttribute('aria-expanded', 'true');
+    if (label) {
+      label.textContent = 'Hide formatting';
+    }
+    updateHeaderOffset();
+    return;
+  }
+
+  toggle.hidden = false;
+  const expanded = !isFormattingToolbarCollapsed;
+  toolbar.hidden = isFormattingToolbarCollapsed;
+  toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  if (label) {
+    label.textContent = expanded ? 'Hide formatting' : 'Show formatting';
+  }
+  updateHeaderOffset();
+}
+
+function setFormattingToolbarCollapsed(collapsed) {
+  if (isFormattingToolbarCollapsed === collapsed) {
+    applyFormattingToolbarVisibility();
+    return;
+  }
+
+  isFormattingToolbarCollapsed = collapsed;
+  applyFormattingToolbarVisibility();
+}
+
+function setupMobileToolbarToggle() {
+  const toolbar = editorElements.formattingToolbar;
+  const toggle = editorElements.mobileToolbarToggle;
+  if (!toolbar || !toggle) {
+    return;
+  }
+
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    toggle.hidden = true;
+    toolbar.hidden = false;
+    updateHeaderOffset();
+    return;
+  }
+
+  mobileToolbarQuery = window.matchMedia(MOBILE_TOOLBAR_BREAKPOINT_QUERY);
+
+  toggle.addEventListener('click', () => {
+    if (!mobileToolbarQuery || !mobileToolbarQuery.matches) {
+      return;
+    }
+    setFormattingToolbarCollapsed(!isFormattingToolbarCollapsed);
+  });
+
+  const handleBreakpointChange = () => {
+    if (mobileToolbarQuery.matches) {
+      setFormattingToolbarCollapsed(true);
+    } else {
+      setFormattingToolbarCollapsed(false);
+    }
+  };
+
+  if (typeof mobileToolbarQuery.addEventListener === 'function') {
+    mobileToolbarQuery.addEventListener('change', handleBreakpointChange);
+  } else if (typeof mobileToolbarQuery.addListener === 'function') {
+    mobileToolbarQuery.addListener(handleBreakpointChange);
+  }
+
+  setFormattingToolbarCollapsed(mobileToolbarQuery.matches);
 }
 
 function getHtmlEditorContent() {
