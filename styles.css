@@ -169,6 +169,45 @@ h1 {
   align-items: stretch;
 }
 
+.mobile-toolbar-toggle {
+  display: none;
+  align-self: flex-end;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 0.65rem;
+  border: 1px solid var(--border);
+  background: var(--button-bg);
+  color: var(--text);
+  padding: 0.45rem 0.75rem;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.mobile-toolbar-toggle:hover {
+  background: var(--button-bg-hover);
+  border-color: var(--button-border-hover);
+  transform: translateY(-1px);
+}
+
+.mobile-toolbar-toggle:active {
+  transform: translateY(0);
+}
+
+.mobile-toolbar-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.mobile-toolbar-chevron {
+  transition: transform 0.2s ease;
+}
+
+.mobile-toolbar-toggle[aria-expanded='true'] .mobile-toolbar-chevron {
+  transform: rotate(180deg);
+}
+
 .toolbar {
   display: flex;
   gap: 0.5rem;
@@ -414,6 +453,121 @@ h1 {
   .file-menu-dropdown .drive-menu-grid {
     row-gap: 0.75rem;
   }
+
+  header .inner {
+    padding: 0.9rem 1.1rem 1.05rem;
+    gap: 0.75rem;
+  }
+
+  .brand-row {
+    flex-wrap: wrap;
+    row-gap: 0.75rem;
+  }
+
+  .app-brand h1 {
+    font-size: 1.5rem;
+  }
+
+  .toolbar-surface {
+    padding: 0.5rem;
+  }
+
+  .toolbar.formatting {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    gap: 0.4rem;
+    scroll-snap-type: x proximity;
+    padding-bottom: 0.25rem;
+    margin: 0 -0.25rem;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+  }
+
+  .toolbar.formatting > * {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+
+  .toolbar.formatting::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mobile-toolbar-toggle {
+    display: inline-flex;
+  }
+
+  #formatting-toolbar[hidden] {
+    display: none;
+  }
+
+  .toolbar button,
+  .toolbar .secondary-button {
+    padding: 0.45rem 0.6rem;
+    font-size: 0.8rem;
+  }
+
+  .toolbar .icon-button {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .toolbar .icon-button > :is(svg, i) {
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
+  .toolbar .icon-button > i {
+    font-size: 1rem;
+  }
+
+  .toolbar .mode-toggle {
+    padding: 0.45rem 0.7rem;
+    gap: 0.3rem;
+  }
+
+  .toolbar .mode-toggle .button-label {
+    font-size: 0.78rem;
+  }
+
+  .editor-container {
+    margin: 1rem auto 2.25rem;
+    padding: 0 1rem 2.25rem;
+  }
+
+  .file-title {
+    margin-bottom: 0.6rem;
+  }
+
+  .file-title input {
+    padding: 0.65rem 0.85rem;
+    font-size: 1rem;
+  }
+
+  .editor {
+    padding: 1rem;
+    min-height: 55vh;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    overflow-y: visible;
+  }
+
+  .status-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .status-bar span {
+    margin-right: 0;
+  }
+
+  .status-bar > div {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
 }
 
 .toolbar-surface {
@@ -538,6 +692,58 @@ main {
   max-width: 1200px;
   margin: 1.5rem auto;
   padding: 0 1.5rem 3rem;
+}
+
+body.touch-editor header .inner {
+  padding: 0.75rem 1rem 0.9rem;
+  gap: 0.65rem;
+}
+
+body.touch-editor .brand-row {
+  gap: 0.6rem;
+}
+
+body.touch-editor .app-brand {
+  gap: 0.6rem;
+}
+
+body.touch-editor .brand-mark {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 0.75rem;
+}
+
+body.touch-editor .app-brand h1 {
+  font-size: 1.45rem;
+}
+
+body.touch-editor .toolbar-surface {
+  padding: 0.45rem;
+  box-shadow: 0 10px 24px var(--surface-shadow);
+}
+
+body.touch-editor .toolbar-row {
+  gap: 0.65rem;
+}
+
+body.touch-editor .editor-container {
+  margin: 0.9rem auto 2.25rem;
+  padding: 0 1.1rem 2.5rem;
+}
+
+body.touch-editor .editor {
+  padding: 0.9rem 1rem;
+  min-height: 50vh;
+  font-size: 0.98rem;
+  line-height: 1.55;
+}
+
+body.touch-editor .status-bar {
+  gap: 0.6rem;
+}
+
+body.touch-editor .status-bar > div {
+  gap: 0.6rem;
 }
 
 .editor-layout {

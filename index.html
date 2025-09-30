@@ -43,7 +43,22 @@
           </button>
         </div>
         <div class="toolbar-row">
-          <div class="toolbar toolbar-surface formatting" role="toolbar" aria-label="Markdown formatting">
+          <button
+            type="button"
+            class="mobile-toolbar-toggle"
+            id="mobile-toolbar-toggle"
+            aria-expanded="false"
+            aria-controls="formatting-toolbar"
+          >
+            <span class="mobile-toolbar-label">Show formatting</span>
+            <i class="fa-solid fa-chevron-down mobile-toolbar-chevron" aria-hidden="true"></i>
+          </button>
+          <div
+            class="toolbar toolbar-surface formatting"
+            id="formatting-toolbar"
+            role="toolbar"
+            aria-label="Markdown formatting"
+          >
             <div class="file-menu" id="file-menu">
               <button
                 type="button"
