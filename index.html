@@ -31,34 +31,9 @@
             </span>
             <h1>Mark's Markdown Editor</h1>
           </div>
-          <button
-            type="button"
-            class="theme-toggle"
-            id="theme-toggle"
-            aria-pressed="false"
-            aria-label="Switch to light mode"
-            title="Switch to light mode"
-          >
-            <i class="fa-solid fa-moon theme-toggle-icon" aria-hidden="true"></i>
-          </button>
         </div>
         <div class="toolbar-row">
-          <button
-            type="button"
-            class="mobile-toolbar-toggle"
-            id="mobile-toolbar-toggle"
-            aria-expanded="false"
-            aria-controls="formatting-controls"
-          >
-            <span class="mobile-toolbar-label">Show formatting</span>
-            <i class="fa-solid fa-chevron-down mobile-toolbar-chevron" aria-hidden="true"></i>
-          </button>
-          <div
-            class="toolbar toolbar-surface formatting"
-            id="formatting-toolbar"
-            role="toolbar"
-            aria-label="Markdown formatting"
-          >
+          <div class="toolbar-primary-actions">
             <div class="file-menu" id="file-menu">
               <button
                 type="button"
@@ -76,6 +51,33 @@
                 <i class="fa-solid fa-chevron-down file-menu-caret" aria-hidden="true"></i>
               </button>
             </div>
+            <button
+              type="button"
+              class="mobile-toolbar-toggle"
+              id="mobile-toolbar-toggle"
+              aria-expanded="false"
+              aria-controls="formatting-controls"
+            >
+              <span class="mobile-toolbar-label">Show formatting</span>
+              <i class="fa-solid fa-chevron-down mobile-toolbar-chevron" aria-hidden="true"></i>
+            </button>
+            <button
+              type="button"
+              class="theme-toggle"
+              id="theme-toggle"
+              aria-pressed="false"
+              aria-label="Switch to light mode"
+              title="Switch to light mode"
+            >
+              <i class="fa-solid fa-moon theme-toggle-icon" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div
+            class="toolbar toolbar-surface formatting"
+            id="formatting-toolbar"
+            role="toolbar"
+            aria-label="Markdown formatting"
+          >
             <div class="formatting-controls" id="formatting-controls">
               <button
                 type="button"
