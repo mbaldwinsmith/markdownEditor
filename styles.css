@@ -169,6 +169,17 @@ h1 {
   align-items: stretch;
 }
 
+.toolbar-primary-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.toolbar-primary-actions > #theme-toggle {
+  margin-left: auto;
+}
+
 .mobile-toolbar-toggle {
   display: none;
   align-self: flex-end;
@@ -239,7 +250,6 @@ h1 {
   position: relative;
   display: flex;
   align-items: stretch;
-  margin-right: 0.5rem;
 }
 
 .file-menu-toggle {
@@ -446,8 +456,29 @@ h1 {
 }
 
 @media (max-width: 720px) {
-  .file-menu {
+  .toolbar-primary-actions {
     width: 100%;
+    gap: 0.6rem;
+    flex-wrap: nowrap;
+    align-items: stretch;
+  }
+
+  .toolbar-primary-actions > #theme-toggle {
+    margin-left: 0;
+  }
+
+  .toolbar-primary-actions > .file-menu,
+  .toolbar-primary-actions > #mobile-toolbar-toggle {
+    flex: 1 1 0;
+  }
+
+  .toolbar-primary-actions > #mobile-toolbar-toggle {
+    align-self: stretch;
+    justify-content: center;
+  }
+
+  .file-menu {
+    width: auto;
   }
 
   .file-menu-toggle {
@@ -500,6 +531,10 @@ h1 {
   }
 
   .formatting-controls::-webkit-scrollbar {
+    display: none;
+  }
+
+  .toolbar.formatting.is-collapsed {
     display: none;
   }
 
