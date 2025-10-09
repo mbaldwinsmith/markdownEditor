@@ -65,6 +65,50 @@ body {
   flex-direction: column;
 }
 
+button {
+  font-family: var(--font-sans);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: 1px solid var(--border);
+  background: var(--button-bg);
+  color: var(--text);
+  border-radius: 0.9rem;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+  box-shadow: 0 12px 24px var(--surface-shadow);
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease,
+    color 0.2s ease;
+}
+
+button:hover:not(:disabled) {
+  background: var(--button-bg-hover);
+  border-color: var(--button-border-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 16px 28px var(--surface-shadow);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
 header {
   position: sticky;
   top: 0;
@@ -116,31 +160,9 @@ header .inner {
 }
 
 .theme-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 2.75rem;
   height: 2.75rem;
-  border-radius: 0.9rem;
-  border: 1px solid var(--border);
-  background: var(--button-bg);
-  color: var(--text);
-  box-shadow: 0 12px 24px var(--surface-shadow);
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease,
-    box-shadow 0.2s ease;
-  cursor: pointer;
-}
-
-.theme-toggle:hover {
-  background: var(--button-bg-hover);
-  border-color: var(--button-border-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 16px 28px var(--surface-shadow);
-}
-
-.theme-toggle:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
+  padding: 0;
 }
 
 .theme-toggle i {
@@ -183,32 +205,8 @@ h1 {
 .mobile-toolbar-toggle {
   display: none;
   align-self: flex-end;
-  align-items: center;
   gap: 0.4rem;
-  border-radius: 0.65rem;
-  border: 1px solid var(--border);
-  background: var(--button-bg);
-  color: var(--text);
-  padding: 0.45rem 0.75rem;
-  font-size: 0.85rem;
-  line-height: 1.2;
-  cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-}
-
-.mobile-toolbar-toggle:hover {
-  background: var(--button-bg-hover);
-  border-color: var(--button-border-hover);
-  transform: translateY(-1px);
-}
-
-.mobile-toolbar-toggle:active {
-  transform: translateY(0);
-}
-
-.mobile-toolbar-toggle:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
+  padding: 0.5rem 0.85rem;
 }
 
 .mobile-toolbar-chevron {
@@ -253,22 +251,10 @@ h1 {
 }
 
 .file-menu-toggle {
-  display: inline-flex;
-  align-items: center;
   gap: 0.45rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   padding-inline: 0.85rem 0.9rem;
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-}
-
-.file-menu-toggle:hover {
-  transform: translateY(-1px);
-}
-
-.file-menu-toggle:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 
 .file-menu-toggle-icon {
@@ -382,37 +368,22 @@ h1 {
 
 .toolbar.drive-actions .drive-button {
   gap: 0.45rem;
-  padding: 0.55rem 1rem;
+  padding: 0.6rem 1.05rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  background: var(--drive-menu-button-bg);
-  border: 1px solid var(--drive-menu-button-border);
-  border-radius: 0.7rem;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 10px 20px rgba(15, 23, 42, 0.35);
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.toolbar.drive-actions .drive-button:hover {
-  background: rgba(56, 189, 248, 0.18);
-  border-color: rgba(56, 189, 248, 0.55);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 14px 28px rgba(15, 23, 42, 0.4);
-}
-
-.toolbar.drive-actions .drive-button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
 }
 
 .toolbar.drive-actions .drive-button.primary {
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.88), rgba(14, 165, 233, 0.92));
-  border-color: rgba(14, 165, 233, 0.85);
-  color: #0f172a;
-  box-shadow: 0 22px 40px rgba(56, 189, 248, 0.45);
+  background: rgba(56, 189, 248, 0.18);
+  border-color: rgba(56, 189, 248, 0.55);
+  color: #f8fafc;
+  box-shadow: 0 18px 32px rgba(56, 189, 248, 0.35);
 }
 
-.toolbar.drive-actions .drive-button.primary:hover {
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.96), rgba(14, 165, 233, 0.98));
-  box-shadow: 0 26px 46px rgba(56, 189, 248, 0.52);
+.toolbar.drive-actions .drive-button.primary:hover:not(:disabled) {
+  background: rgba(56, 189, 248, 0.24);
+  border-color: rgba(56, 189, 248, 0.65);
+  box-shadow: 0 22px 38px rgba(56, 189, 248, 0.4);
 }
 
 .toolbar.drive-actions .drive-icon {
@@ -442,12 +413,6 @@ h1 {
 
 .toolbar.drive-actions .drive-button.primary:hover .drive-icon {
   background: rgba(255, 255, 255, 0.92);
-}
-
-.toolbar.drive-actions .drive-button:disabled {
-  background: var(--drive-menu-button-disabled-bg);
-  border-color: var(--drive-menu-button-disabled-border);
-  box-shadow: none;
 }
 
 .toolbar.drive-actions .drive-button:disabled .drive-icon {
@@ -628,18 +593,9 @@ h1 {
 
 .toolbar button,
 .toolbar .secondary-button {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--button-bg);
-  border: 1px solid transparent;
-  color: var(--text);
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.65rem;
-  cursor: pointer;
+  gap: 0.35rem;
+  padding: 0.5rem 0.85rem;
   font-size: 0.85rem;
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
 .toolbar .icon-button {
@@ -674,8 +630,6 @@ h1 {
 }
 
 .toolbar .mode-toggle {
-  display: inline-flex;
-  align-items: center;
   gap: 0.35rem;
   padding: 0.5rem 0.85rem;
 }
@@ -702,33 +656,18 @@ h1 {
   font-size: 0.85rem;
 }
 
-.toolbar button:hover,
-.toolbar .secondary-button:hover {
-  background: var(--button-bg-hover);
-  border-color: var(--button-border-hover);
-  transform: translateY(-1px);
-}
-
-.toolbar button:active,
-.toolbar .secondary-button:active {
-  transform: translateY(0);
-}
-
-.toolbar button.primary {
-  background: var(--accent);
+button.primary {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.9), rgba(14, 165, 233, 0.92));
+  border-color: rgba(14, 165, 233, 0.65);
   color: #0f172a;
   font-weight: 600;
+  box-shadow: 0 18px 36px rgba(56, 189, 248, 0.4);
 }
 
-.toolbar button.primary:hover {
-  background: var(--accent-dark);
-}
-
-.toolbar button:disabled,
-.toolbar .secondary-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none;
+button.primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.96), rgba(14, 165, 233, 0.98));
+  border-color: rgba(56, 189, 248, 0.75);
+  box-shadow: 0 22px 40px rgba(56, 189, 248, 0.45);
 }
 
 main {
@@ -1140,34 +1079,12 @@ body.touch-editor .status-bar > div {
 }
 
 #drive-dialog-close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 2rem;
   height: 2rem;
-  border-radius: 0.5rem;
-  border: 1px solid transparent;
-  background: var(--button-bg);
-  color: var(--text);
+  padding: 0;
+  border-radius: 0.6rem;
   font-size: 1.1rem;
   line-height: 1;
-  cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-}
-
-#drive-dialog-close:hover {
-  background: var(--button-bg-hover);
-  border-color: var(--button-border-hover);
-  transform: translateY(-1px);
-}
-
-#drive-dialog-close:active {
-  transform: translateY(0);
-}
-
-#drive-dialog-close:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 
 .dialog-body {
@@ -1341,18 +1258,7 @@ body.touch-editor .status-bar > div {
 }
 
 .dialog-footer button {
-  padding: 0.45rem 0.8rem;
-  border-radius: 0.5rem;
-  border: 1px solid transparent;
-  background: var(--button-bg);
-  color: var(--text);
-  cursor: pointer;
-}
-
-.dialog-footer button.primary {
-  background: var(--accent);
-  color: #0f172a;
-  font-weight: 600;
+  padding: 0.55rem 0.95rem;
 }
 
 .drive-files {
@@ -1400,22 +1306,17 @@ body.touch-editor .status-bar > div {
 }
 
 .drive-breadcrumbs button {
-  background: none;
-  border: none;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8rem;
   color: var(--accent);
-  cursor: pointer;
-  padding: 0;
-  font: inherit;
 }
 
-.drive-breadcrumbs button:hover {
-  text-decoration: underline;
+.drive-breadcrumbs button:hover:not(:disabled) {
+  color: #f8fafc;
 }
 
 .drive-breadcrumbs button:disabled {
   color: var(--breadcrumb-disabled);
-  cursor: default;
-  text-decoration: none;
 }
 
 .drive-breadcrumbs .separator {
@@ -1716,39 +1617,7 @@ header.legal-header .inner {
 
 .drive-save-controls button {
   white-space: nowrap;
-  border-radius: 0.5rem;
-  border: 1px solid transparent;
-  padding: 0.45rem 0.75rem;
-  background: var(--button-bg);
-  color: var(--text);
-  cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-}
-
-.drive-save-controls button:hover {
-  background: var(--button-bg-hover);
-  border-color: var(--button-border-hover);
-  transform: translateY(-1px);
-}
-
-.drive-save-controls button:active {
-  transform: translateY(0);
-}
-
-.drive-save-controls button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.drive-save-controls button.primary {
-  background: var(--accent);
-  color: #0f172a;
-  font-weight: 600;
-}
-
-.drive-save-controls button.primary:hover {
-  background: var(--accent-dark);
+  padding: 0.55rem 0.95rem;
 }
 
 .visually-hidden {
