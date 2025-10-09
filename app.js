@@ -15,6 +15,7 @@ const editorElements = {
   tocEmptyState: document.getElementById('toc-empty'),
   toolbarButtons: document.querySelectorAll('[data-action]'),
   formattingToolbar: document.getElementById('formatting-toolbar'),
+  formattingControls: document.getElementById('formatting-controls'),
   mobileToolbarToggle: document.getElementById('mobile-toolbar-toggle'),
   undoButton: document.querySelector('[data-action="undo"]'),
   redoButton: document.querySelector('[data-action="redo"]'),
@@ -1054,18 +1055,23 @@ function setupTouchEditorOptimizations() {
 
 function applyFormattingToolbarVisibility() {
   const toolbar = editorElements.formattingToolbar;
+  const controls = editorElements.formattingControls;
   const toggle = editorElements.mobileToolbarToggle;
-  if (!toolbar || !toggle) {
+  if (!toolbar || !toggle || !controls) {
     return;
   }
 
   const label = toggle.querySelector('.mobile-toolbar-label');
   const isMobile = mobileToolbarQuery ? mobileToolbarQuery.matches : false;
 
+  toolbar.hidden = false;
+
   if (!isMobile) {
-    toolbar.hidden = false;
+    controls.hidden = false;
+    controls.setAttribute('aria-hidden', 'false');
     toggle.hidden = true;
     toggle.setAttribute('aria-expanded', 'true');
+    toolbar.classList.remove('is-collapsed');
     if (label) {
       label.textContent = 'Hide formatting';
     }
@@ -1075,7 +1081,9 @@ function applyFormattingToolbarVisibility() {
 
   toggle.hidden = false;
   const expanded = !isFormattingToolbarCollapsed;
-  toolbar.hidden = isFormattingToolbarCollapsed;
+  controls.hidden = !expanded;
+  controls.setAttribute('aria-hidden', expanded ? 'false' : 'true');
+  toolbar.classList.toggle('is-collapsed', !expanded);
   toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
   if (label) {
     label.textContent = expanded ? 'Hide formatting' : 'Show formatting';
@@ -1095,14 +1103,18 @@ function setFormattingToolbarCollapsed(collapsed) {
 
 function setupMobileToolbarToggle() {
   const toolbar = editorElements.formattingToolbar;
+  const controls = editorElements.formattingControls;
   const toggle = editorElements.mobileToolbarToggle;
-  if (!toolbar || !toggle) {
+  if (!toolbar || !toggle || !controls) {
     return;
   }
 
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
     toggle.hidden = true;
     toolbar.hidden = false;
+    controls.hidden = false;
+    controls.setAttribute('aria-hidden', 'false');
+    toolbar.classList.remove('is-collapsed');
     updateHeaderOffset();
     return;
   }

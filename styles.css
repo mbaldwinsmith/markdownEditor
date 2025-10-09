@@ -226,6 +226,15 @@ h1 {
   position: relative;
 }
 
+.formatting-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .file-menu {
   position: relative;
   display: flex;
@@ -472,7 +481,7 @@ h1 {
     padding: 0.5rem;
   }
 
-  .toolbar.formatting {
+  .formatting-controls {
     flex-wrap: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
@@ -485,12 +494,16 @@ h1 {
     padding-right: 0.25rem;
   }
 
-  .toolbar.formatting > * {
+  .formatting-controls > * {
     flex: 0 0 auto;
     scroll-snap-align: start;
   }
 
-  .toolbar.formatting::-webkit-scrollbar {
+  .formatting-controls::-webkit-scrollbar {
+    display: none;
+  }
+
+  .toolbar.formatting.is-collapsed .formatting-controls {
     display: none;
   }
 
@@ -498,7 +511,7 @@ h1 {
     display: inline-flex;
   }
 
-  #formatting-toolbar[hidden] {
+  #formatting-controls[hidden] {
     display: none;
   }
 
