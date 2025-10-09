@@ -48,7 +48,7 @@
             class="mobile-toolbar-toggle"
             id="mobile-toolbar-toggle"
             aria-expanded="false"
-            aria-controls="formatting-toolbar"
+            aria-controls="formatting-controls"
           >
             <span class="mobile-toolbar-label">Show formatting</span>
             <i class="fa-solid fa-chevron-down mobile-toolbar-chevron" aria-hidden="true"></i>
@@ -76,82 +76,84 @@
                 <i class="fa-solid fa-chevron-down file-menu-caret" aria-hidden="true"></i>
               </button>
             </div>
-            <button
-              type="button"
-              class="icon-button"
-              data-action="undo"
-              aria-label="Undo"
-              title="Undo"
-              disabled
-            >
-              <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
-            </button>
-            <button
-              type="button"
-              class="icon-button"
-              data-action="redo"
-              aria-label="Redo"
-              title="Redo"
-              disabled
-            >
-              <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
-            </button>
-            <button type="button" class="icon-button" data-action="bold" aria-label="Bold">
-              <i class="fa-solid fa-bold" aria-hidden="true"></i>
-            </button>
-            <button type="button" class="icon-button" data-action="italic" aria-label="Italic">
-              <i class="fa-solid fa-italic" aria-hidden="true"></i>
-            </button>
-            <button type="button" class="icon-button" data-action="strikethrough" aria-label="Strikethrough">
-              <i class="fa-solid fa-strikethrough" aria-hidden="true"></i>
-            </button>
-            <button type="button" class="icon-button" data-action="inline-code" aria-label="Inline code">
-              <i class="fa-solid fa-code" aria-hidden="true"></i>
-            </button>
-            <button type="button" class="icon-button heading-button" data-action="heading-1" aria-label="Heading level 1">
-              <span class="heading-icon" aria-hidden="true">H1</span>
-            </button>
-            <button type="button" class="icon-button heading-button" data-action="heading-2" aria-label="Heading level 2">
-              <span class="heading-icon" aria-hidden="true">H2</span>
-            </button>
-            <button type="button" class="icon-button heading-button" data-action="heading-3" aria-label="Heading level 3">
-              <span class="heading-icon" aria-hidden="true">H3</span>
-            </button>
-            <button type="button" class="icon-button" data-action="blockquote" aria-label="Block quote">
-              <i class="fa-solid fa-quote-right" aria-hidden="true"></i>
-            </button>
-            <button type="button" class="icon-button" data-action="link" aria-label="Insert link">
-              <i class="fa-solid fa-link" aria-hidden="true"></i>
-            </button>
-            <button type="button" class="icon-button" data-action="image" aria-label="Insert image">
-              <i class="fa-solid fa-image" aria-hidden="true"></i>
-            </button>
-            <button type="button" class="icon-button" data-action="ordered-list" aria-label="Ordered list">
-              <i class="fa-solid fa-list-ol" aria-hidden="true"></i>
-            </button>
-            <button type="button" class="icon-button" data-action="unordered-list" aria-label="Unordered list">
-              <i class="fa-solid fa-list-ul" aria-hidden="true"></i>
-            </button>
-            <button type="button" class="icon-button" data-action="table" aria-label="Insert table">
-              <i class="fa-solid fa-table" aria-hidden="true"></i>
-            </button>
-            <button type="button" class="icon-button" data-action="code-block" aria-label="Insert code block">
-              <i class="fa-solid fa-file-code" aria-hidden="true"></i>
-            </button>
-            <button type="button" class="icon-button" data-action="horizontal-rule" aria-label="Insert horizontal rule">
-              <i class="fa-solid fa-minus" aria-hidden="true"></i>
-            </button>
-            <button
-              type="button"
-              class="secondary-button mode-toggle"
-              id="editor-mode-toggle"
-              aria-pressed="false"
-              aria-label="Switch to HTML mode"
-              title="Switch to HTML mode"
-            >
-              <i class="fa-solid fa-code" aria-hidden="true"></i>
-              <span class="button-label">HTML</span>
-            </button>
+            <div class="formatting-controls" id="formatting-controls">
+              <button
+                type="button"
+                class="icon-button"
+                data-action="undo"
+                aria-label="Undo"
+                title="Undo"
+                disabled
+              >
+                <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+              </button>
+              <button
+                type="button"
+                class="icon-button"
+                data-action="redo"
+                aria-label="Redo"
+                title="Redo"
+                disabled
+              >
+                <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="icon-button" data-action="bold" aria-label="Bold">
+                <i class="fa-solid fa-bold" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="icon-button" data-action="italic" aria-label="Italic">
+                <i class="fa-solid fa-italic" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="icon-button" data-action="strikethrough" aria-label="Strikethrough">
+                <i class="fa-solid fa-strikethrough" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="icon-button" data-action="inline-code" aria-label="Inline code">
+                <i class="fa-solid fa-code" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="icon-button heading-button" data-action="heading-1" aria-label="Heading level 1">
+                <span class="heading-icon" aria-hidden="true">H1</span>
+              </button>
+              <button type="button" class="icon-button heading-button" data-action="heading-2" aria-label="Heading level 2">
+                <span class="heading-icon" aria-hidden="true">H2</span>
+              </button>
+              <button type="button" class="icon-button heading-button" data-action="heading-3" aria-label="Heading level 3">
+                <span class="heading-icon" aria-hidden="true">H3</span>
+              </button>
+              <button type="button" class="icon-button" data-action="blockquote" aria-label="Block quote">
+                <i class="fa-solid fa-quote-right" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="icon-button" data-action="link" aria-label="Insert link">
+                <i class="fa-solid fa-link" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="icon-button" data-action="image" aria-label="Insert image">
+                <i class="fa-solid fa-image" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="icon-button" data-action="ordered-list" aria-label="Ordered list">
+                <i class="fa-solid fa-list-ol" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="icon-button" data-action="unordered-list" aria-label="Unordered list">
+                <i class="fa-solid fa-list-ul" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="icon-button" data-action="table" aria-label="Insert table">
+                <i class="fa-solid fa-table" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="icon-button" data-action="code-block" aria-label="Insert code block">
+                <i class="fa-solid fa-file-code" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="icon-button" data-action="horizontal-rule" aria-label="Insert horizontal rule">
+                <i class="fa-solid fa-minus" aria-hidden="true"></i>
+              </button>
+              <button
+                type="button"
+                class="secondary-button mode-toggle"
+                id="editor-mode-toggle"
+                aria-pressed="false"
+                aria-label="Switch to HTML mode"
+                title="Switch to HTML mode"
+              >
+                <i class="fa-solid fa-code" aria-hidden="true"></i>
+                <span class="button-label">HTML</span>
+              </button>
+            </div>
           </div>
           <div
             class="toolbar toolbar-surface drive-actions file-menu-dropdown"
