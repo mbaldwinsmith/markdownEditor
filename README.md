@@ -36,7 +36,7 @@ Google Drive sign-in requires a browser OAuth client ID. Opening arbitrary exist
    - **OAuth 2.0 Client ID** (type: Web application). Add your GitHub Pages origin to the authorised JavaScript origins.
    - **API key**. Restrict it to the Google Picker API and to the exact origins that host the editor.
    - **Project number**. Find it under **IAM & Admin → Settings**; Google Picker calls this the app ID.
-4. Configure your hosting platform to expose the credentials at `/config/google-drive.json` or an equivalent authenticated endpoint. The payload should resemble:
+4. Configure your hosting platform to expose the credentials at `./config/google-drive.json` (relative to the deployed app) or an equivalent endpoint. The payload should resemble:
 
    ```json
    {
