@@ -58,6 +58,7 @@ let turndownService = null;
 let lastSelection = { start: 0, end: 0 };
 let tokenClient = null;
 let gisReady = false;
+let pickerReady = false;
 let accessToken = null;
 let headerResizeObserver = null;
 let isFileMenuOpen = false;
@@ -134,14 +135,14 @@ let currentFileSource = null;
 let currentOfflineParentId = OFFLINE_ROOT_ID;
 
 const discoveryDocs = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
-const scopes =
-  'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly';
+const scopes = 'https://www.googleapis.com/auth/drive.file';
 
-const driveConfigEndpoint = '/config/google-drive.json';
+const driveConfigEndpoint = './config/google-drive.json';
 
 let googleDriveConfig = {
   clientId: '',
-  apiKey: ''
+  apiKey: '',
+  appId: ''
 };
 
 const defaultMarkdown = `# Welcome to Mark's Markdown Editor
@@ -2457,14 +2458,30 @@ function navigateToParentFolder() {
   refreshDriveFileList({ folderId: parent.id, source: currentFolderSource });
 }
 
-function enterDriveFolder(folder) {
+async function enterDriveFolder(folder) {
   if (!folder?.id) {
     return;
   }
+  const folderSource = folder.source ?? currentFolderSource;
+  if (
+    driveDialogMode === 'open' &&
+    folderSource === FILE_SOURCE_DRIVE &&
+    folder.id === DRIVE_ROOT_ID &&
+    isPickerConfigured()
+  ) {
+    closeDialog();
+    try {
+      await openGoogleDrivePicker();
+    } catch (error) {
+      openDialog('open');
+      showDriveError(error);
+    }
+    return;
+  }
   const name = folder.name || 'Untitled folder';
-  driveFolderPath = [...driveFolderPath, { id: folder.id, name, source: folder.source ?? currentFolderSource }];
+  driveFolderPath = [...driveFolderPath, { id: folder.id, name, source: folderSource }];
   currentDriveFolderId = folder.id;
-  currentFolderSource = folder.source ?? currentFolderSource;
+  currentFolderSource = folderSource;
   clearDriveSelection();
   refreshDriveFileList({ folderId: folder.id, source: currentFolderSource });
 }
@@ -2604,6 +2621,9 @@ async function loadGoogleDriveConfig() {
     if (typeof config.apiKey === 'string') {
       googleDriveConfig.apiKey = config.apiKey.trim();
     }
+    if (typeof config.appId === 'string') {
+      googleDriveConfig.appId = config.appId.trim();
+    }
   }
 
   if (!googleDriveConfig.clientId) {
@@ -2611,6 +2631,25 @@ async function loadGoogleDriveConfig() {
     const metaContent = meta?.content?.trim();
     if (metaContent) {
       googleDriveConfig.clientId = metaContent;
+    }
+  }
+
+  if (!googleDriveConfig.apiKey) {
+    const meta = document.querySelector('meta[name="google-api-key"]');
+    const metaContent = meta?.content?.trim();
+    if (metaContent && !metaContent.startsWith('YOUR_')) {
+      googleDriveConfig.apiKey = metaContent;
+    }
+  }
+
+  if (!googleDriveConfig.appId) {
+    const meta = document.querySelector('meta[name="google-cloud-project-number"]');
+    const metaContent = meta?.content?.trim();
+    if (metaContent && !metaContent.startsWith('YOUR_')) {
+      googleDriveConfig.appId = metaContent;
+    } else {
+      const projectNumberMatch = googleDriveConfig.clientId.match(/^(\d+)-/u);
+      googleDriveConfig.appId = projectNumberMatch?.[1] ?? '';
     }
   }
 
@@ -2626,15 +2665,28 @@ function isDriveConfigured() {
   return Boolean(googleDriveConfig.clientId && !googleDriveConfig.clientId.startsWith('YOUR_'));
 }
 
+function isPickerConfigured() {
+  return Boolean(
+    isDriveConfigured() &&
+      googleDriveConfig.apiKey &&
+      !googleDriveConfig.apiKey.startsWith('YOUR_') &&
+      googleDriveConfig.appId &&
+      !googleDriveConfig.appId.startsWith('YOUR_')
+  );
+}
+
 function updateDriveConfigMessage() {
   if (!editorElements.driveConfigStatus) {
     return;
   }
   const configured = isDriveConfigured();
+  const pickerConfigured = isPickerConfigured();
   const messageElement = editorElements.driveConfigMessage ?? editorElements.driveConfigStatus;
-  const message = configured
-    ? 'Google Drive credentials loaded. Sign in to browse Drive files alongside your offline drafts.'
-    : 'Provide Google Drive credentials via your secure runtime configuration to enable Drive sync. Offline drafts remain available even without Drive access.';
+  const message = !configured
+    ? 'Provide a Google OAuth client ID to enable Drive sync. Offline drafts remain available without Drive access.'
+    : pickerConfigured
+      ? 'Google Drive and Google Picker are configured. Sign in to open selected Drive files alongside your offline drafts.'
+      : 'Google Drive sign-in is configured. Add a browser-restricted API key to enable Google Picker for arbitrary existing files.';
 
   editorElements.driveConfigStatus.classList.toggle('configured', configured);
   editorElements.driveConfigStatus.dataset.state = configured ? 'configured' : 'missing';
@@ -2711,6 +2763,74 @@ async function waitForGis() {
       }
     };
     check();
+  });
+}
+
+async function waitForPicker() {
+  if (pickerReady && window.google?.picker) {
+    return;
+  }
+  await new Promise((resolve, reject) => {
+    let attempts = 0;
+    const check = () => {
+      if (pickerReady && window.google?.picker) {
+        resolve();
+        return;
+      }
+      attempts += 1;
+      if (attempts >= 100) {
+        reject(new Error('Google Picker failed to load.'));
+        return;
+      }
+      window.setTimeout(check, 100);
+    };
+    check();
+  });
+}
+
+async function openGoogleDrivePicker() {
+  if (!isPickerConfigured()) {
+    throw new Error(
+      'Add a browser-restricted Google API key to your Drive configuration before opening existing Drive files.'
+    );
+  }
+  await ensureDriveAccess({ promptUser: true });
+  await waitForPicker();
+
+  return new Promise((resolve, reject) => {
+    const markdownView = new google.picker.View(google.picker.ViewId.DOCS);
+    markdownView.setMimeTypes('text/plain,text/markdown');
+
+    const picker = new google.picker.PickerBuilder()
+      .addView(markdownView)
+      .setOAuthToken(accessToken)
+      .setDeveloperKey(googleDriveConfig.apiKey)
+      .setAppId(googleDriveConfig.appId)
+      .setOrigin(window.location.origin)
+      .setTitle('Open Markdown from Google Drive')
+      .setCallback(async (data) => {
+        const action = data?.[google.picker.Response.ACTION];
+        if (action === google.picker.Action.CANCEL) {
+          resolve(false);
+          return;
+        }
+        if (action !== google.picker.Action.PICKED) {
+          return;
+        }
+        const documents = data[google.picker.Response.DOCUMENTS] || [];
+        const document = documents[0];
+        const fileId = document?.[google.picker.Document.ID];
+        const fileName = document?.[google.picker.Document.NAME] || 'Untitled.md';
+        if (!fileId) {
+          reject(new Error('Google Picker did not return a file ID.'));
+          return;
+        }
+        await loadDriveFile(fileId, fileName);
+        resolve(true);
+      })
+      .build();
+
+    picker.setVisible(true);
   });
 }
 
@@ -3181,12 +3301,13 @@ window.onGapiLoaded = () => {
     return;
   }
 
-  gapi.load('client', {
+  gapi.load('client:picker', {
     callback: () => {
       gapiReady = true;
+      pickerReady = Boolean(window.google?.picker);
     },
     onerror: () => {
-      console.error('Failed to load Google API client library modules.');
+      console.error('Failed to load Google API client or Picker library modules.');
     }
   });
 };
