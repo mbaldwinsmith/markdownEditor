@@ -28,27 +28,29 @@ To work locally without a server, simply open `index.html` in a browser. For ful
 
 ## Google Drive configuration
 
-Google requires that you supply your own OAuth client ID (and optionally an API key) for Drive access. In production you should provide these credentials via a secure runtime configuration so they are never committed to the repository. The app attempts to load `/config/google-drive.json` (served by your hosting platform or backend) which should return JSON with `clientId` and `apiKey` fields.
+Google Drive sign-in requires a browser OAuth client ID. Opening arbitrary existing files through Google Picker also requires a browser-restricted API key and the Google Cloud project number (the Picker app ID). The app attempts to load `./config/google-drive.json`, which should return `clientId`, `apiKey`, and `appId` fields. Browser client IDs, restricted API keys, and project numbers are public identifiers in a static web app; never add an OAuth client secret.
 
 1. Visit the [Google Cloud Console](https://console.cloud.google.com/).
 2. Create a project (or choose an existing one) and enable the **Google Drive API**.
 3. Create credentials:
    - **OAuth 2.0 Client ID** (type: Web application). Add your GitHub Pages origin to the authorised JavaScript origins.
-   - **API key** *(optional)*. Restrict it to the origin that will host the editor and provide it at runtime alongside the client ID.
+   - **API key**. Restrict it to the Google Picker API and to the exact origins that host the editor.
+   - **Project number**. Find it under **IAM & Admin → Settings**; Google Picker calls this the app ID.
 4. Configure your hosting platform to expose the credentials at `/config/google-drive.json` or an equivalent authenticated endpoint. The payload should resemble:
 
    ```json
    {
      "clientId": "YOUR_CLIENT_ID",
-     "apiKey": "YOUR_OPTIONAL_API_KEY"
+     "apiKey": "YOUR_BROWSER_RESTRICTED_API_KEY",
+     "appId": "YOUR_GOOGLE_CLOUD_PROJECT_NUMBER"
    }
    ```
 
-   Never commit these values to source control.
-5. For local development you may still update the `<meta name="google-oauth-client-id">` tag inside `index.html` with your client ID so sign-in works when serving the files directly from disk.
-6. Deploy the updated files and configuration. When you open the editor, click **Sign in** to authorise Google Drive access, then use **Open**, **Save**, or **Save as** to work with Drive files.
+   Do not place an OAuth client secret in this file or anywhere in the browser app.
+5. For local development or static hosting without a config endpoint, you may provide `google-oauth-client-id`, `google-api-key`, and `google-cloud-project-number` meta tags in `index.html`. The project number can also be derived from the standard browser client ID format.
+6. Deploy the updated files and configuration. Click **Sign in**, then choose **Open → My Drive** to select an existing Markdown file with Google Picker. **Save** and **Save as** continue to create or update files authorised for this editor.
 
-> ⚠️ The app requests the `drive.file` and `drive.readonly` scopes. Ensure your OAuth consent screen is configured for external users if you plan to share the app.
+> The app requests only `drive.file`, a non-sensitive per-file scope. Google Picker grants the editor access only to files you explicitly select, while the editor can continue to update files it created.
 
 ## Project structure
 
